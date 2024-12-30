@@ -1,14 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import LayoutView from "@/views/Layout/LayoutView.vue";
-import DetailView from "@/views/Detail/DetailView.vue";
 import mainView from "@/views/main/mainView.vue";
-import CartList from "@/views/CartList/index.vue";
-import Checkout from "@/views/Checkout/index.vue";
-import Pay from "@/views/Pay/index.vue";
-import Login from "@/views/Login/index.vue";
-import Member from "@/views/Member/index.vue";
-import UserInfo from "@/views/Member/components/UserInfo.vue";
-import UserOrder from "@/views/Member/components/UserOrder.vue";
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -17,45 +9,54 @@ const router = createRouter({
       component: LayoutView,
       children: [
         {
-          path: "",
+          path: "/",
           component: mainView,
         },
         {
-          path: "detail/:id",
-          component: DetailView,
+          path: "Detail/:id",
+          component: () => import('@/views/Detail/DetailView.vue'),
         },
         {
           path: "cartlist",
-          component: CartList,
+          component: () => import('@/views/CartList/index.vue'),
         },
         {
           path: "checkout",
-          component: Checkout,
+          component: () => import('@/views/Checkout/index.vue'),
         },
         {
           path: "pay",
-          component: Pay,
+          component: () => import('@/views/Pay/index.vue')
+        },
+        {
+          path: '/pay/callback',
+          component: () => import('@/views/Pay/PayCallback.vue')
         },
         {
           path: "member",
-          component: Member,
+          component: () => import('@/views/Member/index.vue'),
           children: [
             {
               path: "",
-              component: UserInfo,
+              component: () => import('@/views/Member/components/UserInfo.vue'),
             },
             {
               path: "order",
-              component: UserOrder,
+              component: () => import('@/views/Member/components/UserOrder.vue'),
             },
+            {
+              path: "reset-password",
+              component: () => import('@/views/Member/components/ResetPassword.vue'),
+            }
           ],
         },
       ],
     },
     {
       path: "/login",
-      component: Login,
+      component: () => import('@/views/Login/index.vue'),
     },
+
   ],
   scrollBehavior(to, from, savedPosition) {
     // 每次跳转时都滚动到顶部

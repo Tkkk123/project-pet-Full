@@ -1,15 +1,20 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
+import { CartItem } from "@/types/CartItem";
+
 
 export const useCartStore = defineStore(
   "cart",
   () => {
-    const cartList = ref([]);
-    // 定义添加商品到购物车的方法
-    const addCart = (goods) => {
-      const { id, name, picture, price, count, sex, color } = goods;
+    // 购物车列表，数组中的元素是 CartItem 类型
+    const cartList = ref<CartItem[]>([]);
+
+    // 添加商品到购物车的方法
+    const addCart = (goods: CartItem) => {
+
+      const { id, name, picture, price, count, size, color, gender } = goods;
       const itemIndex = cartList.value.findIndex(
-        (item) => item.id === id && item.sex === sex && item.color === color
+        (item) => item.id === id && item.gender === gender && item.color === color && item.size === size
       );
       if (itemIndex !== -1) {
         // 商品已存在于购物车中，更新数量
@@ -22,16 +27,20 @@ export const useCartStore = defineStore(
           picture,
           price,
           count,
-          sex,
+          gender,
           color,
+          size,
+          selected: false, // 默认不选中
         });
       }
     };
 
-    // 删除购物车
-    const delCart = (id) => {
+    // 删除购物车中的商品
+    const delCart = (id: number) => {
       const idx = cartList.value.findIndex((item) => item.id === id);
-      cartList.value.splice(idx, 1);
+      if (idx !== -1) {
+        cartList.value.splice(idx, 1);
+      }
     };
 
     // 清除购物车
@@ -40,15 +49,17 @@ export const useCartStore = defineStore(
     };
 
     // 单选功能
-    const singleCheck = (id, sex, color, selected) => {
+    const singleCheck = (id: number, gender: string, color: string, size: string, selected: boolean) => {
       const item = cartList.value.find(
-        (item) => item.id === id && item.sex === sex && item.color === color
+        (item) => item.id === id && item.gender === gender && item.color === color && item.size === size
       );
-      item.selected = selected;
+      if (item) {
+        item.selected = selected;
+      }
     };
 
     // 全选功能
-    const allCheck = (selected) => {
+    const allCheck = (selected: boolean) => {
       cartList.value.forEach((item) => (item.selected = selected));
     };
 
@@ -86,6 +97,6 @@ export const useCartStore = defineStore(
     };
   },
   {
-    persist: true,
+    persist: true, // 将购物车数据持久化
   }
 );

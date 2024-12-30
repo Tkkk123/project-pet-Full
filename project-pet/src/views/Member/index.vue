@@ -1,94 +1,118 @@
 <script setup>
+import { useRouter } from 'vue-router'
+const router = useRouter()
 
+const menuItems = [
+  {
+    title: '我的账户',
+    items: [
+      { name: '个人中心', path: '/member', icon: 'icon-user' },
+      { name: '修改密码', path: '/member/reset-password', icon: 'icon-lock' }
+    ]
+  },
+  {
+    title: '交易管理',
+    items: [
+      { name: '我的订单', path: '/member/order', icon: 'icon-order' }
+    ]
+  }
+]
 </script>
 
 <template>
-  <div class="container">
-    <div class="xtx-member-aside">
+  <div class="member-layout">
+    <!-- 侧边栏 -->
+    <div class="member-aside">
       <div class="user-manage">
-        <h4>我的账户</h4>
-        <div class="links">
-          <RouterLink to="/member">个人中心</RouterLink>
-        </div>
-        <h4>交易管理</h4>
-        <div class="links">
-          <RouterLink to="/member/order">我的订单</RouterLink>
+        <div v-for="menu in menuItems" :key="menu.title" class="menu-group">
+          <h4>{{ menu.title }}</h4>
+          <div class="links">
+            <RouterLink v-for="item in menu.items" :key="item.name" :to="item.path" class="menu-item">
+              <i :class="['iconfont', item.icon]"></i>
+              {{ item.name }}
+            </RouterLink>
+          </div>
         </div>
       </div>
     </div>
-    <div class="article">
-      <!-- 三级路由的挂载点 -->
+    <!-- 内容区域 -->
+    <div class="member-main">
       <RouterView />
     </div>
   </div>
 </template>
 
 <style scoped lang="less">
-.container {
+.member-layout {
   width: 1240px;
-  margin: 0 auto;
+  margin: 20px auto;
   display: flex;
+  gap: 20px;
 
-
-  .xtx-member-aside {
+  .member-aside {
     width: 220px;
-    margin-right: 20px;
-    border-radius: 2px;
     background-color: #fff;
+    border-radius: 4px;
 
-    .user-manage {
-      background-color: #fff;
-
+    .menu-group {
       h4 {
         font-size: 18px;
         font-weight: 400;
-        padding: 20px 52px 5px;
+        padding: 20px 20px 5px;
         border-top: 1px solid #f6f6f6;
+
+        &:first-child {
+          border-top: none;
+        }
       }
 
       .links {
-        padding: 0 52px 10px;
+        padding: 0 20px;
       }
 
-      a {
-        display: block;
-        line-height: 1;
+      .menu-item {
+        display: flex;
+        align-items: center;
         padding: 15px 0;
         font-size: 14px;
         color: #666;
         position: relative;
+        transition: all 0.3s;
+
+        .iconfont {
+          font-size: 18px;
+          margin-right: 10px;
+        }
 
         &:hover {
-          color: red;
+          color: #ff6b35;
         }
 
-        &.active,
-        &.router-link-exact-active {
-          color: red;
+        &.router-link-active {
+          color: #ff6b35;
+          font-weight: 500;
 
           &:before {
-            display: block;
+            content: '';
+            position: absolute;
+            left: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 16px;
+            background-color: #ff6b35;
+            border-radius: 2px;
           }
-        }
-
-        &:before {
-          content: '';
-          display: none;
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          position: absolute;
-          top: 19px;
-          left: -16px;
-          background-color: red;
         }
       }
     }
   }
 
-  .article {
-    width: 1000px;
+  .member-main {
+    flex: 1;
     background-color: #fff;
+    border-radius: 4px;
+    padding: 20px;
   }
 }
 </style>

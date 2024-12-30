@@ -4,62 +4,123 @@
 
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/userStore'
+import { registerAPI } from '@/apis/user'
 
 const userStore = useUserStore()
-//默认数据
+const route = useRoute()
+const router = useRouter()
+
+// 修改登录/注册的状态 (1: 注册, 2: 登录)
+const type = ref(2)  // 默认显示登录状态
+
+// 统一使用form数据
 const form = ref({
-  account: '周杰伦',
-  password: '123456',
-  agree: true
+  account: '',
+  password: '',
+  confirmPassword: '',
+  email: '',
+  phone: '',
+  agree: false  // 添加 agree 字段到表单数据中
 })
 
-// 设置规则
+// 统一的校验规则
 const rules = {
   account: [
     { required: true, message: '用户名不能为空', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '密码不能为空', trigger: 'blur' },
-    { min: 6, max: 14, message: '密码长度为6-14个字符', trigger: 'blur' },
+    { min: 6, max: 14, message: '密码长度为6-14个字符', trigger: 'blur' }
+  ],
+  confirmPassword: [
+    { required: true, message: '请确认密码', trigger: 'blur' },
+    {
+      validator: (rule, value, callback) => {
+        if (value !== form.value.password) {
+          callback(new Error('两次输入的密码不一致'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
+    }
+  ],
+  email: [
+    { required: true, message: '邮箱不能为空', trigger: 'blur' },
+    // { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
+  ],
+  phone: [
+    { required: true, message: '手机号不能为空', trigger: 'blur' },
+    // { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' }
   ],
   agree: [
     {
       validator: (rule, value, callback) => {
-        // 自定义校验逻辑
-        // 勾选就通过 不勾选就不通过
         if (value) {
           callback()
         } else {
           callback(new Error('请勾选协议'))
         }
-      }
+      },
+      trigger: 'change'
     }
   ]
 }
 
 //  获取form实例做统一校验
 const formRef = ref(null)
-const router = useRouter()
 const doLogin = () => {
   const { account, password } = form.value
   // 调用实例方法
   formRef.value.validate(async (valid) => {
-    // valid: 所有表单都通过校验  才为true
-    // 以valid做为判断条件 如果通过校验才执行登录逻辑
+    // valid: 所有表单都通过校验才为true
     if (valid) {
-      // 调用 getUserInfo 函数，并接收返回值
-      const loginResult = await userStore.getUserInfo({ account, password })
-      // 判断登录是否成功
+      const loginResult = await userStore.login({ account, password })
       if (loginResult) {
-        // 登录成功的额外操作，例如提示用户并跳转到首页
-        ElMessage({ type: 'success', message: ('登录成功') })
-        router.replace({ path: '/' })
+        ElMessage({ type: 'success', message: '登录成功' })
+        // 获取重定向地址
+        const redirect = route.query.redirect || '/'
+        router.replace({ path: redirect })
       } else {
-        // 登录失败的额外操作，例如提示用户
         ElMessage({ type: 'error', message: '用户名或密码错误' })
+      }
+    }
+  })
+}
+
+// 注册方法
+const doRegister = () => {
+  formRef.value.validate(async (valid) => {
+    if (valid) {
+      try {
+        // 调用注册API
+        const res = await registerAPI({
+          account: form.value.account,
+          password: form.value.password,
+          email: form.value.email,
+          phone: form.value.phone
+        })
+
+        if (res.code === 200) {
+          ElMessage.success('注册成功')
+          type.value = 2  // 注册成功后切换到登录状态
+          // 清空表单
+          form.value = {
+            account: form.value.account,
+            password: form.value.password,
+            confirmPassword: '',
+            email: '',
+            phone: '',
+            agree: true
+          }
+        } else {
+          ElMessage.error(res.msg || '注册失败')
+        }
+      } catch (error) {
+        ElMessage.error('注册失败，请稍后重试')
+        console.error('注册错误:', error)
       }
     }
   })
@@ -80,25 +141,47 @@ const doLogin = () => {
     <section class="login-section">
       <div class="wrapper">
         <nav>
-          <a href="javascript:;">账户登录</a>
+          <el-radio-group v-model="type" size="large">
+            <el-radio-button :value="2">账户登录</el-radio-button>
+            <el-radio-button :value="1">立即注册</el-radio-button>
+          </el-radio-group>
         </nav>
         <div class="account-box">
-          <div class="form">
-            <el-form ref="formRef" :model="form" :rules="rules" label-position="right" label-width="60px">
-              <el-form-item prop="account" label="账户">
-                <el-input v-model="form.account" />
-              </el-form-item>
-              <el-form-item prop="password" label="密码">
-                <el-input type="password" v-model="form.password" />
-              </el-form-item>
-              <el-form-item prop="agree" label-width="22px">
-                <el-checkbox size="large" v-model="form.agree">
-                  我已同意隐私条款和服务条款
-                </el-checkbox>
-              </el-form-item>
-              <el-button size="large" class="subBtn" @click="doLogin">点击登录</el-button>
-            </el-form>
-          </div>
+          <el-form ref="formRef" :model="form" :rules="rules" label-position="right" label-width="80px"
+            class="login-form">
+            <!-- 复用的登录字段 -->
+            <el-form-item prop="account" label="账户">
+              <el-input v-model="form.account" />
+            </el-form-item>
+            <el-form-item prop="password" label="密码">
+              <el-input type="password" v-model="form.password" />
+            </el-form-item>
+
+            <!-- 注册时的额外字段 -->
+            <el-form-item v-if="type === 1" prop="confirmPassword" label="确认密码">
+              <el-input type="password" v-model="form.confirmPassword" />
+            </el-form-item>
+            <el-form-item v-if="type === 1" prop="email" label="邮箱">
+              <el-input v-model="form.email" />
+            </el-form-item>
+            <el-form-item v-if="type === 1" prop="phone" label="手机号">
+              <el-input v-model="form.phone" />
+            </el-form-item>
+
+            <!-- 修改协议勾选的表单项，仅在注册时显示和验证 -->
+            <el-form-item v-if="type === 1" prop="agree" label-width="22px">
+              <el-checkbox size="large" v-model="form.agree">
+                我已同意隐私条款和服务条款
+              </el-checkbox>
+            </el-form-item>
+
+            <!-- 修改提交按钮的样式 -->
+            <el-form-item class="submit-item">
+              <el-button size="large" class="subBtn" @click="type === 2 ? doLogin() : doRegister()">
+                {{ type === 2 ? '点击登录' : '立即注册' }}
+              </el-button>
+            </el-form-item>
+          </el-form>
         </div>
       </div>
     </section>
@@ -117,6 +200,10 @@ const doLogin = () => {
         <p>CopyRight &copy; 宠物帮帮居</p>
       </div>
     </footer>
+
+    <div class="extra-links">
+      <router-link to="/member/reset-password">忘记密码？</router-link>
+    </div>
   </div>
 </template>
 
@@ -170,31 +257,33 @@ const doLogin = () => {
 
   .wrapper {
     width: 380px;
+    height: fit-content;
     background: #fff;
     position: absolute;
     left: 50%;
     top: 100px;
     transform: translate3d(100px, 0, 0);
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    // padding-bottom: 30px;
 
     nav {
       font-size: 14px;
       height: 55px;
-      margin-bottom: 20px;
+      margin-bottom: 30px;
       border-bottom: 1px solid #f5f5f5;
       display: flex;
       padding: 0 40px;
-      text-align: right;
+      justify-content: center;
       align-items: center;
 
-      a {
-        color: black;
-        flex: 1;
-        line-height: 1;
-        display: inline-block;
-        font-size: 18px;
-        position: relative;
-        text-align: center;
+      :deep(.el-radio-group) {
+        --el-color-primary: #ff8659;
+
+        .el-radio-button__inner {
+          // padding: 8px 30px;
+          font-size: 16px;
+        }
       }
     }
   }
@@ -223,126 +312,69 @@ const doLogin = () => {
 }
 
 .account-box {
-  .toggle {
-    padding: 15px 40px;
-    text-align: right;
+  .login-form {
+    padding: 0 50px;
+    height: fit-content;
 
-    a {
-      color: red;
+    :deep(.el-form-item) {
+      .el-form-item__content {
+        width: 280px;
 
-      i {
-        font-size: 14px;
+      }
+
+      .el-input__wrapper {
+        box-shadow: 0 0 0 1px #dcdfe6;
+        transition: all 0.3s;
+
+        &:hover {
+          box-shadow: 0 0 0 1px #ff8659;
+        }
+
+        &.is-focus {
+          box-shadow: 0 0 0 1px #ff6b35;
+        }
+      }
+
+      .el-checkbox__inner {
+        &:hover {
+          border-color: #ff8659;
+        }
+
+        &.is-checked .el-checkbox__inner {
+          background-color: #ff6b35;
+          border-color: #ff6b35;
+        }
       }
     }
   }
 
-  .form {
-    padding: 0 20px 20px 20px;
+  .submit-item {
+    text-align: center;
 
-    &-item {
-      margin-bottom: 28px;
-
-      .input {
-        position: relative;
-        height: 36px;
-
-        >i {
-          width: 34px;
-          height: 34px;
-          background: #cfcdcd;
-          color: #fff;
-          position: absolute;
-          left: 1px;
-          top: 1px;
-          text-align: center;
-          line-height: 34px;
-          font-size: 18px;
-        }
-
-        input {
-          padding-left: 44px;
-          border: 1px solid #cfcdcd;
-          height: 36px;
-          line-height: 36px;
-          width: 100%;
-
-          &.error {
-            border-color: red;
-          }
-
-          &.active,
-          &:focus {
-            border-color: red;
-          }
-        }
-
-        .code {
-          position: absolute;
-          right: 1px;
-          top: 1px;
-          text-align: center;
-          line-height: 34px;
-          font-size: 14px;
-          background: #f5f5f5;
-          color: #666;
-          width: 90px;
-          height: 34px;
-          cursor: pointer;
-        }
-      }
-
-      >.error {
-        position: absolute;
-        font-size: 12px;
-        line-height: 28px;
-        color: red;
-
-        i {
-          font-size: 14px;
-          margin-right: 2px;
-        }
-      }
-    }
-
-    .agree {
-      a {
-        color: #069;
-      }
-    }
-
-    .btn {
-      display: block;
-      width: 100%;
-      height: 40px;
-      color: #fff;
-      text-align: center;
-      line-height: 40px;
-      background: red;
-
-      &.disabled {
-        background: #cfcdcd;
-      }
-    }
-  }
-
-  .action {
-    padding: 20px 40px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-
-    .url {
-      a {
-        color: #999;
-        margin-left: 10px;
-      }
+    :deep(.el-form-item__content) {
+      justify-content: center;
+      margin-left: 0 !important;
     }
   }
 }
 
 .subBtn {
-  background: red;
-  width: 100%;
+  background: #ff6b35;
+  width: 280px;
   color: #fff;
+  border: none;
+  transition: all 0.3s;
+  height: 44px;
+  font-size: 16px;
+  border-radius: 22px;
+
+  &:hover {
+    background: #ff8659;
+    color: #fff;
+  }
+
+  &:active {
+    background: #e55a2b;
+  }
 }
 </style>

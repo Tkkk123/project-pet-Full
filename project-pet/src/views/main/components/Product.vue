@@ -3,7 +3,6 @@ import Panel from './Panel.vue';
 import Card from './Card.vue';
 import { usePetListStore } from '@/stores/Category';
 const { getPetList } = usePetListStore()
-console.log(getPetList);
 
 </script>
 

@@ -1,6 +1,7 @@
 <script setup>
 import { useCartStore } from '@/stores/cartStore'
 const cartStore = useCartStore()  //调用已经加入购物车里的pinia数据
+
 </script>
 
 <template>
@@ -20,7 +21,7 @@ const cartStore = useCartStore()  //调用已经加入购物车里的pinia数据
               <p class="name ellipsis-2">
                 {{ item.name }}
               </p>
-              <p class="attr ellipsis">{{ item.sex }} {{ item.color }}</p>
+              <p class="attr ellipsis">{{ item.gender }} {{ item.color }} {{ item.size }}</p>
             </div>
             <div class="right">
               <p class="price">&yen;{{ item.price }}</p>

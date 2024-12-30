@@ -1,14 +1,13 @@
 <script setup>
-import { getCheckInfoAPI } from '@/apis/checkout'
+import { addressAPI } from '@/apis/address'
 import { useRouter, useRoute } from 'vue-router'
-import { onMounted, ref, reactive, } from 'vue'
+import { onMounted, ref, reactive } from 'vue'
 import { useCartStore } from '@/stores/cartStore'
-import { useAddressStore } from '@/stores/Address'
 import { useUserStore } from '@/stores/userStore'
 import { ElMessage } from 'element-plus'
+import { createOrderAPI } from '@/apis/checkout'
 
-const addressStore = useAddressStore();
-
+const userStore = useUserStore()
 const router = useRouter()
 const route = useRoute()
 
@@ -16,111 +15,197 @@ const checkInfo = ref({}) // 订单对象
 const curAddress = ref({}) // 默认地址
 const selectedItems = ref([])
 const selectedData = ref(null)
-//获取订单收件人信息
-const getCheckInfo = async () => {
-  const res = await getCheckInfoAPI();
-  checkInfo.value = res.result;
-  //合并本地用户添加的收件人信息
-  if (addressStore.$state.addresses) {
-    const storedAddresses = addressStore.$state.addresses;
-    storedAddresses.forEach(address => {
-      address.isDefault = 0;
-      checkInfo.value.userAddresses.push(address);
-    });
+
+// 获取用户地址列表
+const getUserAddressList = async () => {
+  try {
+    // 先检查登录状态
+    if (!userStore.userInfo) {
+      ElMessage.warning('请先登录')
+      router.push({
+        path: '/login',
+        query: { redirect: '/checkout' }
+      })
+      return
+    }
+
+    const res = await addressAPI.getList()
+    // 添加响应状态判断
+    if (res.code === 401) {
+      ElMessage.warning('登录已过期，请重新登录')
+      router.push({
+        path: '/login',
+        query: { redirect: '/checkout' }
+      })
+      return
+    }
+
+    if (res.code === 200 && res.data) {
+      checkInfo.value.userAddresses = res.data
+      if (res.data.length > 0) {
+        const defaultAddress = res.data.find(addr => addr.isDefault === 1)
+        curAddress.value = defaultAddress || res.data[0]
+      }
+    }
+  } catch (error) {
+    if (error.response?.status === 401) {
+      ElMessage.warning('登录已过期，请重新登录')
+      router.push({
+        path: '/login',
+        query: { redirect: '/checkout' }
+      })
+    } else {
+      console.error('获取地址列表失败:', error)
+      ElMessage.error('获取地址列表失败')
+    }
   }
-  //默认展示第一条收件人信息
-  const defaultAddress = checkInfo.value.userAddresses.find(item => item.isDefault === 0);
-  curAddress.value = defaultAddress;
 }
 
-onMounted(() => {
-  getCheckInfo()
+onMounted(async () => {
   selectedData.value = calculateSelectedData()
+  if (!selectedData.value) {
+    ElMessage.error('商品数据无效')
+    router.push('/cartlist')
+    return
+  }
+  await getUserAddressList()
 })
 
+// 地址管理相关
 const showDialog = ref(false)
-const showAddAddressDialog = ref(false);
+const showAddAddressDialog = ref(false)
+const addressForm = ref(null)
 
 const newAddress = reactive({
   receiver: '',
   contact: '',
-  address: ''
-});
-//对添加的收件人数据进行简单校验
+  address: '',
+  isDefault: 0
+})
+
 const addressRules = {
-  receiver: [
-    { required: true, message: '请输入收货人姓名', trigger: 'blur' }
-  ],
-  contact: [
-    { required: true, message: '请输入联系方式', trigger: 'blur' }
-  ],
-  address: [
-    { required: true, message: '请输入收货地址', trigger: 'blur' }
-  ]
-};
-const addressForm = ref(null);
-//收件人信息校验无误执行添加本地收件人信息
-function Address() {
-  const valid = addressForm.value.validate();
-  if (valid) {
-    addressStore.addAddress(newAddress);
-    showAddAddressDialog.value = false;
-    // 更新 curAddress 为新添加的地址
-    curAddress.value = newAddress;
-    // 更新 checkInfo.userAddresses 为最新的地址列表
-    checkInfo.value.userAddresses.push(newAddress);
-  }
+  receiver: [{ required: true, message: '请输入收货人姓名', trigger: 'blur' }],
+  contact: [{ required: true, message: '请输入联系方式', trigger: 'blur' }],
+  address: [{ required: true, message: '请输入收货地址', trigger: 'blur' }]
 }
 
+// 提交新地址
+const submitAddress = async () => {
+  if (!addressForm.value) return
 
+  await addressForm.value.validate(async (valid) => {
+    if (valid) {
+      try {
+        const res = await addressAPI.add(newAddress)
+        if (res.code === 200) {
+          ElMessage.success('添加地址成功')
+          showAddAddressDialog.value = false
+          await getUserAddressList()
+          // 如果是第一个地址或设为默认地址，则自动选中
+          if (res.data.isDefault === 1 || checkInfo.value.userAddresses.length === 1) {
+            curAddress.value = res.data
+          }
+          addressForm.value.resetFields()
+        } else {
+          ElMessage.error(res.message || '添加地址失败')
+        }
+      } catch (error) {
+        console.error('添加地址失败:', error)
+        ElMessage.error('添加地址失败，请稍后重试')
+      }
+    }
+  })
+}
+
+// 切换地址
 const switchAddress = (item) => {
-  curAddress.value = item;
+  curAddress.value = item
   showDialog.value = false
 }
-//执行下单结算时进行用户状态判断，登录可下单，非登录跳转到登录页面
-const createOrder = () => {
-  const userStore = useUserStore()
-  //判断是否处于登录状态
-  if (userStore.userInfo.token) {
-    ElMessage({
-      type: 'success',
-      message: '下单成功！'
-    })
-    router.push({
-      path: '/pay',
-    })
-  } else {
-    ElMessage({
-      type: 'warning',
-      message: '请先登录！'
-    })
+
+// 创建订单
+const createOrder = async () => {
+  if (!userStore.userInfo) {
+    ElMessage.warning('请先登录')
     router.push({
       path: '/login',
+      query: { redirect: '/checkout' }
     })
+    return
   }
 
-  const CardStore = useCartStore()
-  CardStore.clearCart()
+  try {
+    const orderData = {
+      products: selectedItems.value.map(item => ({
+        id: item.id,
+        count: item.count,
+        price: item.price,
+        color: item.color,
+        size: item.size,
+        gender: item.gender,
+        name: item.name,
+        picture: item.picture
+      })),
+      totalPrice: Number(selectedData.value.totalAmount)
+    }
 
+    const res = await createOrderAPI(orderData)
 
+    // 添加响应状态判断
+    if (res.code === 401) {
+      ElMessage.warning('登录已过期，请重新登录')
+      router.push({
+        path: '/login',
+        query: { redirect: '/checkout' }
+      })
+      return
+    }
+
+    if (res.code === 200) {
+      ElMessage.success('下单成功')
+      const cartStore = useCartStore()
+      cartStore.clearCart()
+      router.push({
+        path: '/pay',
+        query: {
+          orderId: res.data.orderId,
+          totalAmount: selectedData.value.totalAmount
+        }
+      })
+    } else {
+      ElMessage.error(res.message || '下单失败')
+    }
+  } catch (error) {
+    console.error('下单失败:', error)
+    ElMessage.error('下单失败，请稍后重试')
+  }
 }
 
-//对选中的商品进行计算，精确到小数点后两位
+// 计算商品数据
 const calculateSelectedData = () => {
   if (route.query.selectedItems) {
-    const itemsArray = JSON.parse(route.query.selectedItems)
-    selectedItems.value = itemsArray
-    const itemCount = selectedItems.value.reduce((total, item) => total + item.count, 0)
-    const totalPrice = selectedItems.value.reduce((total, item) => total + (item.price * item.count), 0)
-    const shippingFee = totalPrice * 0.02
-    const totalAmount = totalPrice + shippingFee
-    return {
-      itemCount,
-      totalPrice: totalPrice.toFixed(2),
-      shippingFee: shippingFee.toFixed(2),
-      totalAmount: totalAmount.toFixed(2)
+    try {
+      const itemsArray = JSON.parse(route.query.selectedItems)
+      selectedItems.value = itemsArray
+
+      const itemCount = itemsArray.reduce((total, item) => total + item.count, 0)
+      const totalPrice = itemsArray.reduce((total, item) => total + (item.price * item.count), 0)
+      const shippingFee = totalPrice * 0.02
+      const totalAmount = totalPrice + shippingFee
+
+      return {
+        itemCount,
+        totalPrice: totalPrice.toFixed(2),
+        shippingFee: shippingFee.toFixed(2),
+        totalAmount: totalAmount.toFixed(2)
+      }
+    } catch (error) {
+      console.error('解析商品数据失败:', error)
+      ElMessage.error('商品数据解析失败')
+      return null
     }
   }
+  return null
 }
 </script>
 
@@ -136,14 +221,27 @@ const calculateSelectedData = () => {
             <div class="text">
               <div class="none" v-if="!curAddress">您需要先添加收货地址才可提交订单。</div>
               <ul v-else>
-                <li><span>收货人：</span>{{ curAddress.receiver }}</li>
-                <li><span>联系方式：</span>{{ curAddress.contact }}</li>
-                <li><span>收货地址：</span>{{ curAddress.fullLocation }} {{ curAddress.address }}</li>
+                <li>
+                  <span>收货人：</span>
+                  {{ curAddress.receiver }}
+                </li>
+                <li>
+                  <span>联系方式：</span>
+                  {{ curAddress.contact }}
+                </li>
+                <li>
+                  <span>收货地址：</span>
+                  {{ curAddress.address }}
+                </li>
               </ul>
             </div>
             <div class="action">
-              <el-button size="large" @click="showDialog = true">切换地址</el-button>
-              <el-button size="large" @click="showAddAddressDialog = true">添加地址</el-button>
+              <el-button size="large" @click="showDialog = true" :disabled="!checkInfo.userAddresses?.length">
+                切换地址
+              </el-button>
+              <el-button size="large" type="primary" @click="showAddAddressDialog = true">
+                添加地址
+              </el-button>
             </div>
           </div>
         </div>
@@ -203,7 +301,9 @@ const calculateSelectedData = () => {
         </div>
         <!-- 提交订单 -->
         <div class="submit">
-          <el-button @click="createOrder" type="primary" size="large">提交订单</el-button>
+          <el-button type="primary" size="large" @click="createOrder" :disabled="!curAddress || !selectedItems.length">
+            提交订单
+          </el-button>
         </div>
       </div>
     </div>
@@ -211,33 +311,38 @@ const calculateSelectedData = () => {
   <!-- 切换地址 -->
   <el-dialog v-model="showDialog" title="切换收货地址" width="30%" center>
     <div class="addressWrapper">
-      <div class="text item" @click="switchAddress(item)" v-for="item in checkInfo.userAddresses" :key="item.id">
+      <div class="text item" v-for="item in checkInfo.userAddresses" :key="item.id"
+        :class="{ active: curAddress?.id === item.id }" @click="switchAddress(item)">
         <ul>
-          <li><span>收货人：</span>{{ item.receiver }} </li>
+          <li><span>收货人：</span>{{ item.receiver }}</li>
           <li><span>联系方式：</span>{{ item.contact }}</li>
-          <li><span>收货地址：</span> {{ item.fullLocation ? item.fullLocation + item.address : item.address }}</li>
+          <li><span>收货地址：</span>{{ item.address }}</li>
         </ul>
-
       </div>
     </div>
   </el-dialog>
   <!-- 添加地址 -->
   <el-dialog v-model="showAddAddressDialog" title="添加收货地址" width="30%" center>
-    <el-form :model="newAddress" :rules="addressRules" ref="addressForm" label-width="80px">
+    <el-form ref="addressForm" :model="newAddress" :rules="addressRules" label-width="80px">
       <el-form-item label="收货人" prop="receiver">
-        <el-input v-model="newAddress.receiver" />
+        <el-input v-model="newAddress.receiver" placeholder="请输入收货人姓名" />
       </el-form-item>
       <el-form-item label="联系方式" prop="contact">
-        <el-input v-model="newAddress.contact" />
+        <el-input v-model="newAddress.contact" placeholder="请输入联系方式" />
       </el-form-item>
       <el-form-item label="收货地址" prop="address">
-        <el-input v-model="newAddress.address" />
+        <el-input v-model="newAddress.address" type="textarea" :rows="3" placeholder="请输入详细地址" />
+      </el-form-item>
+      <el-form-item>
+        <el-checkbox v-model="newAddress.isDefault" :true-value="1" :false-value="0">
+          设为默认地址
+        </el-checkbox>
       </el-form-item>
     </el-form>
     <template #footer>
       <span class="dialog-footer">
         <el-button @click="showAddAddressDialog = false">取消</el-button>
-        <el-button type="primary" @click="Address">确定</el-button>
+        <el-button type="primary" @click="submitAddress">确定</el-button>
       </span>
     </template>
   </el-dialog>
@@ -434,32 +539,26 @@ const calculateSelectedData = () => {
 }
 
 .addressWrapper {
-  max-height: 500px;
+  max-height: 400px;
   overflow-y: auto;
 }
 
-.text {
-  flex: 1;
-  min-height: 90px;
-  display: flex;
-  align-items: center;
+.text.item {
+  border: 1px solid #f5f5f5;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all 0.3s;
 
-  &.item {
-    border: 1px solid #f5f5f5;
-    margin-bottom: 10px;
-    cursor: pointer;
+  &.active,
+  &:hover {
+    border-color: #ff6b35;
+    background: #fff6f2;
+  }
 
-    &.active,
-    &:hover {
-      border-color: red;
-      background: lighten(red, 50%);
-    }
-
-    >ul {
-      padding: 10px;
-      font-size: 14px;
-      line-height: 30px;
-    }
+  ul {
+    padding: 15px;
+    font-size: 14px;
+    line-height: 30px;
   }
 }
 </style>

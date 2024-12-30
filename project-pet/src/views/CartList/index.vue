@@ -1,14 +1,16 @@
 <script setup>
 import { useCartStore } from '@/stores/cartStore'
+import { useUserStore } from '@/stores/userStore'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+
 const cartStore = useCartStore()
+const userStore = useUserStore()
 const router = useRouter()
 
 // 勾选执行   selected布尔值：表示是否选中，item选中的对象
 const singleCheck = (item, selected) => {
-  // 除了 selected 补充用来筛选的参数 - item.id, item.sex, item.color
-  cartStore.singleCheck(item.id, item.sex, item.color, selected)
+  cartStore.singleCheck(item.id, item.gender, item.color, item.size, selected)
 }
 
 const countChange = (value, item) => {
@@ -23,21 +25,46 @@ const countChange = (value, item) => {
 const allCheck = (selected) => {
   cartStore.allCheck(selected)
 }
-//下单结算执行
+
+// 优化下单结算执行逻辑
 const goToCheckout = () => {
+  // 先检查登录状态
+  if (!userStore.userInfo) {
+    ElMessage({
+      type: 'warning',
+      message: '请先登录后再进行结算'
+    })
+    // 保存当前路由，登录后可以跳回
+    router.push({
+      path: '/login',
+      query: {
+        redirect: '/cartlist' // 登录后跳回购物车页
+      }
+    })
+    return
+  }
+
+  // 检查是否选择了商品
   const selectedItems = cartStore.cartList.filter(item => item.selected)
-  if (selectedItems.length > 0) {
-    // 至少选择了一个商品，可以使用 selectedItems 作为结算内容
-    // 将 selectedItems 对象转换为 JSON 字符串
-    const selectedItemsJSON = JSON.stringify(selectedItems)
-    // 导航到结算页面，传递 JSON 字符串作为查询参数
-    router.push({ path: '/checkout', query: { selectedItems: selectedItemsJSON } })
-  } else {
-    // 没有选中商品，提示用户
+  if (selectedItems.length === 0) {
     ElMessage.warning('请至少选择一个商品进行结算')
+    return
+  }
+
+  // 进行结算操作
+  try {
+    const selectedItemsJSON = JSON.stringify(selectedItems)
+    router.push({
+      path: '/checkout',
+      query: {
+        selectedItems: selectedItemsJSON
+      }
+    })
+  } catch (error) {
+    console.error('结算跳转错误:', error)
+    ElMessage.error('系统错误，请稍后重试')
   }
 }
-
 
 </script>
 
@@ -72,7 +99,7 @@ const goToCheckout = () => {
                     <p class="name ellipsis">
                       {{ item.name }}
                     </p>
-                    <p class="attr ellipsis">{{ item.sex }} {{ item.color }}</p>
+                    <p class="attr ellipsis">{{ item.gender }} {{ item.color }} {{ item.size }}</p>
                   </div>
                 </div>
               </td>
@@ -117,7 +144,9 @@ const goToCheckout = () => {
           <span class="red">¥ {{ cartStore.selectedPrice.toFixed(2) }} </span>
         </div>
         <div class="total">
-          <el-button size="large" type="primary" @click="goToCheckout">下单结算</el-button>
+          <el-button size="large" type="primary" @click="goToCheckout" :disabled="cartStore.selectedCount === 0">
+            下单结算
+          </el-button>
         </div>
       </div>
     </div>

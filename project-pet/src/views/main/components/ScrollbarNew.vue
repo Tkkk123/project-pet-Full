@@ -15,7 +15,7 @@ if (HotList.length === 0) {
                 <div class="scrollbar-flex-content">
                     <ul v-for="item in HotList.products" :key="item.product_id" class="scrollbar-demo-item">
                         <li>
-                            <router-link to="/">
+                            <router-link :to="`/Detail/${item.product_id}`">
                                 <div class="card">
                                     <i class="iconfont icon-03DMS_cuxiaoguanli" v-if="item.sku_discount > 0.5"></i>
                                     <img v-lazy="item.product_img" alt="">

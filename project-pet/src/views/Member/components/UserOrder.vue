@@ -1,292 +1,352 @@
 <script setup>
-import { getUserOrder } from '@/apis/order'
-import { onMounted, reactive } from 'vue'
+import { getUserOrder, updateOrderStatus } from '@/apis/checkout'
+import { ref, onMounted, reactive } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+
+const router = useRouter()
+const route = useRoute()
+const currentTab = ref('all')
+const loading = ref(false)
+const state = reactive({ orderList: [] })
+
 // tab列表
 const tabTypes = [
   { name: "all", label: "全部订单" },
   { name: "unpay", label: "待付款" },
-  { name: "deliver", label: "待发货" },
-  { name: "receive", label: "待收货" },
-  { name: "comment", label: "待评价" },
   { name: "complete", label: "已完成" },
   { name: "cancel", label: "已取消" }
 ]
-// 获取订单列表
-const orderList = reactive([])
 
-const getOrderList = async () => { //获取订单数据
-  const res = await getUserOrder()
-  orderList.push(res.result)
+// 状态映射
+const typeMap = {
+  'all': 'all',
+  'unpay': 'pending',
+  'complete': 'completed',
+  'cancel': 'cancelled'
 }
-onMounted(() => getOrderList())
+
+// 获取订单列表
+const getOrderList = async (tab = 'all') => {
+  loading.value = true
+  try {
+    const res = await getUserOrder({ type: typeMap[tab] })
+    if (res.code === 200) {
+      state.orderList = res.data
+    }
+  } catch (error) {
+    ElMessage.error('获取订单列表失败')
+  } finally {
+    loading.value = false
+  }
+}
 
 // tab切换
-const tabChange = () => {
-  getOrderList()
+const handleTabChange = (tab) => {
+  currentTab.value = tab
+  getOrderList(tab)
 }
-const fomartPayState = (payState) => {
-  const stateMap = {
-    1: '待付款',
-    2: '待发货',
-    3: '待收货',
-    4: '待评价',
-    5: '已完成',
-    6: '已取消'
+
+// 订单操作方法
+const handleOrder = async (order, action) => {
+  const actions = {
+    pay: {
+      title: '确认支付该订单？',
+      status: 'completed',
+      success: '支付成功'
+    },
+    cancel: {
+      title: '确定要取消该订单吗？',
+      status: 'cancelled',
+      success: '订单已取消'
+    }
   }
-  return stateMap[payState]
+
+  const currentAction = actions[action]
+  if (!currentAction) return
+
+  try {
+    await ElMessageBox.confirm(currentAction.title, '提示', {
+      type: action === 'pay' ? 'info' : 'warning'
+    })
+    const res = await updateOrderStatus(order.id, currentAction.status)
+    console.log(res);
+    if (res.code === 200) {
+      ElMessage.success(currentAction.success)
+      getOrderList(currentTab.value)
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(`${currentAction.success}失败`)
+    }
+  }
 }
+
+onMounted(() => {
+  const tab = route.query.tab || 'all'
+  currentTab.value = tab
+  getOrderList(tab)
+})
 </script>
 
 <template>
-  <div class="order-container">
-    <el-tabs @tab-change="tabChange">
-      <!-- tab切换 -->
-      <el-tab-pane v-for="item in tabTypes" :key="item.name" :label="item.label" />
-      <div class="main-container">
-        <div class="holder-container" v-if="orderList.length === 0">
+  <div class="order-list">
+    <el-tabs v-model="currentTab" @tab-change="handleTabChange">
+      <el-tab-pane v-for="item in tabTypes" :key="item.name" :name="item.name" :label="item.label">
+        <!-- 加载状态 -->
+        <div v-if="loading" class="loading-skeleton">
+          <div class="skeleton-item" />
+        </div>
+
+        <!-- 空状态 -->
+        <div v-else-if="!state.orderList.length" class="empty-state">
           <el-empty description="暂无订单数据" />
         </div>
-        <div v-else>
-          <!-- 订单列表 -->
-          <div class="order-item" v-for="order in orderList" :key="order.id">
-            <div class="head">
-              <span>下单时间：{{ order.createTime }}</span>
-              <span>订单编号：{{ order.id }}</span>
-              <!-- 未付款，倒计时时间还有 -->
-              <span class="down-time" v-if="order.orderState === 1">
-                <i class="iconfont icon-down-time"></i>
-                <b>付款截止: {{ order.countdown }}</b>
-              </span>
+
+        <!-- 订单列表 -->
+        <div v-else class="order-items">
+          <div class="order-item" v-for="order in state.orderList" :key="order.id">
+            <!-- 订单头部 -->
+            <div class="order-header">
+              <span class="time">下单时间：{{ order.createTime }}</span>
+              <span class="order-id">订单编号：{{ order.id }}</span>
+              <span class="status">{{ order.orderState }}</span>
             </div>
-            <div class="body">
-              <div class="column goods">
-                <ul>
-                  <li v-for="item in order.skus" :key="item.id">
-                    <a class="image" href="javascript:;">
-                      <img :src="item.image" alt="" />
-                    </a>
-                    <div class="info">
-                      <p class="name ellipsis-2">
-                        {{ item.name }}
-                      </p>
-                      <p class="attr ellipsis">
-                        <span>{{ item.attrsText }}</span>
-                      </p>
+
+            <!-- 订单内容 -->
+            <div class="order-body">
+              <div class="goods-list">
+                <div v-for="sku in order.skus" :key="sku.id" class="goods-item">
+                  <img :src="sku.image" :alt="sku.name">
+                  <div class="goods-info">
+                    <h4>{{ sku.name }}</h4>
+                    <p class="attrs">{{ sku.attrsText }}</p>
+                    <div class="price-qty">
+                      <span class="unit-price">单价：¥{{ Number(sku.price).toFixed(2) }}</span>
+                      <span class="price">小计：¥{{ (Number(sku.price) * Number(sku.quantity)).toFixed(2) }}</span>
+                      <span class="qty">x{{ sku.quantity }}</span>
                     </div>
-                    <div class="price">¥{{ item.realPay?.toFixed(2) }}</div>
-                    <div class="count">x{{ item.quantity }}</div>
-                  </li>
-                </ul>
+                  </div>
+                </div>
               </div>
-              <div class="column state">
-                <p>{{ fomartPayState(order.orderState) }}</p>
-                <p v-if="order.orderState === 3">
-                  <a href="javascript:;" class="green">查看物流</a>
-                </p>
-                <p v-if="order.orderState === 4">
-                  <a href="javascript:;" class="green">评价商品</a>
-                </p>
-                <p v-if="order.orderState === 5">
-                  <a href="javascript:;" class="green">查看评价</a>
-                </p>
-              </div>
-              <div class="column amount">
-                <p class="red">¥{{ order.payMoney?.toFixed(2) }}</p>
-                <p>（含运费：¥{{ order.postFee?.toFixed(2) }}）</p>
-                <p>在线支付</p>
-              </div>
-              <div class="column action">
-                <el-button v-if="order.orderState === 1" type="primary" size="small">
-                  立即付款
-                </el-button>
-                <el-button v-if="order.orderState === 3" type="primary" size="small">
-                  确认收货
-                </el-button>
-                <p><a href="javascript:;">查看详情</a></p>
-                <p v-if="[2, 3, 4, 5].includes(order.orderState)">
-                  <a href="javascript:;">再次购买</a>
-                </p>
-                <p v-if="[4, 5].includes(order.orderState)">
-                  <a href="javascript:;">申请售后</a>
-                </p>
-                <p v-if="order.orderState === 1"><a href="javascript:;">取消订单</a></p>
+
+              <!-- 订单底部 -->
+              <div class="order-footer">
+                <div class="total">
+                  <span>实付金额：</span>
+                  <span class="price">¥{{ Number(order.payMoney).toFixed(2) }}</span>
+                </div>
+                <div class="buttons">
+                  <el-button v-if="order.orderState === '待付款'" type="primary"
+                    @click="handleOrder(order, 'pay')">立即付款</el-button>
+                  <el-button v-if="order.orderState === '待付款'" @click="handleOrder(order, 'cancel')">取消订单</el-button>
+                </div>
               </div>
             </div>
-          </div>
-          <!-- 分页 -->
-          <div class="pagination-container">
-            <el-pagination background layout="prev, pager, next" :total="1000" />
           </div>
         </div>
-      </div>
-
+      </el-tab-pane>
     </el-tabs>
   </div>
 </template>
 
 <style scoped lang="less">
-.order-container {
-  padding: 10px 20px;
+.order-list {
+  .loading-skeleton {
+    padding: 20px;
 
-  .pagination-container {
-    display: flex;
-    justify-content: center;
-  }
-
-  .main-container {
-    min-height: 500px;
-
-    .holder-container {
-      min-height: 500px;
+    .skeleton-item {
       display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-  }
-}
-
-.order-item {
-  margin-bottom: 20px;
-  border: 1px solid #f5f5f5;
-
-  .head {
-    height: 50px;
-    line-height: 50px;
-    background: #f5f5f5;
-    padding: 0 20px;
-    overflow: hidden;
-
-    span {
-      margin-right: 20px;
-
-      &.down-time {
-        margin-right: 0;
-        float: right;
-
-        i {
-          vertical-align: middle;
-          margin-right: 3px;
-        }
-
-        b {
-          vertical-align: middle;
-          font-weight: normal;
-        }
-      }
-    }
-
-    .del {
-      margin-right: 0;
-      float: right;
-      color: #999;
-    }
-  }
-
-  .body {
-    display: flex;
-    align-items: stretch;
-
-    .column {
-      border-left: 1px solid #f5f5f5;
-      text-align: center;
       padding: 20px;
+      background: #fff;
+      border-radius: 4px;
+      margin-bottom: 20px;
 
-      >p {
-        padding-top: 10px;
+      .skeleton-image {
+        width: 240px;
+        height: 240px;
+        background: #f5f5f5;
+        border-radius: 4px;
       }
 
-      &:first-child {
-        border-left: none;
-      }
-
-      &.goods {
+      .skeleton-content {
         flex: 1;
-        padding: 0;
-        align-self: center;
+        margin-left: 20px;
+        padding: 14px;
 
-        ul {
-          li {
-            border-bottom: 1px solid #f5f5f5;
-            padding: 10px;
+        .skeleton-title {
+          width: 50%;
+          height: 24px;
+          background: #f5f5f5;
+          border-radius: 4px;
+          margin-bottom: 16px;
+        }
+
+        .skeleton-text {
+          width: 30%;
+          height: 16px;
+          background: #f5f5f5;
+          border-radius: 4px;
+        }
+      }
+    }
+  }
+
+  .empty-state {
+    padding: 40px;
+    text-align: center;
+  }
+
+  .order-items {
+    .order-item {
+      margin-bottom: 20px;
+      background: #fff;
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+
+      .order-header {
+        padding: 20px;
+        background: #f8f8f8;
+        display: flex;
+        align-items: center;
+        font-size: 14px;
+        color: #666;
+
+        .time {
+          margin-right: 20px;
+        }
+
+        .order-id {
+          margin-right: auto;
+        }
+
+        .status {
+          color: #ff6b35;
+          font-weight: 500;
+        }
+      }
+
+      .order-body {
+        padding: 20px;
+
+        .goods-list {
+          .goods-item {
             display: flex;
+            padding: 20px 0;
+            border-bottom: 1px solid #f5f5f5;
 
             &:last-child {
               border-bottom: none;
             }
 
-            .image {
-              width: 70px;
-              height: 70px;
-              border: 1px solid #f5f5f5;
-
-              img {
-                width: 70px;
-                height: 70px;
-              }
-            }
-
-            .info {
-              width: 220px;
-              text-align: left;
-              padding: 0 10px;
-
-              p {
-                margin-bottom: 5px;
-
-                &.name {
-                  height: 38px;
-                }
-
-                &.attr {
-                  color: #999;
-                  font-size: 12px;
-
-                  span {
-                    margin-right: 5px;
-                  }
-                }
-              }
-            }
-
-            .price {
-              width: 100px;
-            }
-
-            .count {
+            img {
               width: 80px;
+              height: 80px;
+              object-fit: cover;
+              margin-right: 20px;
+              border-radius: 4px;
+            }
+
+            .goods-info {
+              flex: 1;
+
+              h4 {
+                font-size: 16px;
+                margin-bottom: 10px;
+                color: #333;
+              }
+
+              .attrs {
+                color: #999;
+                font-size: 14px;
+                margin-bottom: 10px;
+              }
+
+              .price-qty {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                color: #666;
+
+                .unit-price {
+                  color: #999;
+                  font-size: 14px;
+                }
+
+                .price {
+                  color: #ff6b35;
+                  font-size: 16px;
+                  font-weight: 500;
+                }
+
+                .qty {
+                  color: #999;
+                }
+              }
             }
           }
         }
-      }
 
-      &.state {
-        width: 120px;
+        .order-footer {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 20px;
+          padding-top: 20px;
+          border-top: 1px solid #f5f5f5;
 
-        .green {
-          color: green;
-        }
-      }
+          .total {
+            font-size: 14px;
 
-      &.amount {
-        width: 200px;
+            .price {
+              color: #ff6b35;
+              font-size: 20px;
+              font-weight: 500;
+              margin-left: 5px;
+            }
+          }
 
-        .red {
-          color: red;
-        }
-      }
+          .buttons {
+            display: flex;
+            gap: 10px;
 
-      &.action {
-        width: 140px;
+            .el-button {
+              padding: 8px 20px;
 
-        a {
-          display: block;
+              &.el-button--primary {
+                background-color: #ff6b35;
+                border-color: #ff6b35;
 
-          &:hover {
-            color: red;
+                &:hover {
+                  background-color: darken(#ff6b35, 10%);
+                  border-color: darken(#ff6b35, 10%);
+                }
+              }
+            }
           }
         }
       }
     }
+  }
+}
+
+// 动画效果
+.skeleton-item {
+  animation: skeleton-loading 1.5s infinite;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    opacity: 0.6;
+  }
+
+  50% {
+    opacity: 0.8;
+  }
+
+  100% {
+    opacity: 0.6;
   }
 }
 </style>

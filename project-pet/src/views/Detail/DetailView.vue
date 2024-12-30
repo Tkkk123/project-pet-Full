@@ -1,68 +1,189 @@
+<script setup>
+import { useRoute } from "vue-router";
+import { onMounted, reactive, ref, computed } from "vue";
+import { ElMessage } from "element-plus";
+import { useCartStore } from "@/stores/cartStore";
+import Sku from "@/views/Sku/index.vue";
+import { getDetailAPI } from "@/apis/DetailData";
+const cartStore = useCartStore();
+const route = useRoute();
+const DetailData = reactive({});
+const images = [
+    { src: "商品详情1.webp", alt: "商品1" },
+    { src: "商品详情2.webp", alt: "商品2" },
+    { src: "商品详情3.webp", alt: "商品3" },
+];
+
+// 商品状态检查
+const goodsStatus = reactive({
+    isSoldOut: false,
+    isOffShelf: false,
+    message: ''
+})
+
+//用户选中某个宠物跳转页面后执行
+const getGoods = async () => {
+    try {
+        const res = await getDetailAPI(route.params.id);
+        if (res.code === 200) {
+            if (!res.data || res.data.length === 0) {
+                ElMessage.warning(res.message || '商品信息不存在');
+                return;
+            }
+            Object.assign(DetailData, ...res.data);
+
+            // 检查商品状态
+            if (DetailData.sku_quantity <= 0) {
+                goodsStatus.isSoldOut = true;
+                goodsStatus.message = '该商品已售罄';
+                ElMessage.warning(goodsStatus.message);
+            }
+            if (!DetailData.specifications || DetailData.specifications.length === 0) {
+                goodsStatus.isOffShelf = true;
+                goodsStatus.message = '商品未上架';
+                ElMessage.warning(goodsStatus.message);
+            }
+        } else {
+            ElMessage.error(res.message || '获取商品信息失败');
+        }
+    } catch (error) {
+        console.error('获取商品详情失败:', error);
+        ElMessage.error('获取商品详情失败，请稍后重试');
+    }
+};
+
+// 检查是否可以操作商品
+const canOperateGoods = computed(() => {
+    return !goodsStatus.isSoldOut && !goodsStatus.isOffShelf;
+});
+
+let skuObj = {};
+
+const skuChange = (sku) => {
+    skuObj = sku; // 接收子组件传出的数据
+
+};
+
+const addCart = () => {
+    // 确保所有规格项都已选择
+    const isAllSelected = DetailData.specifications.every(sku => skuObj[sku.special_name]);
+
+    if (isAllSelected) {
+        // 字段映射表，将中文字段名转换为英文字段名
+        const fieldMapping = {
+            "颜色": "color",
+            "尺寸": "size",
+            "性别": "gender"
+        };
+
+        // 创建一个新的对象，将中文字段名转换为英文字段名
+        const mappedSkuObj = Object.keys(skuObj).reduce((acc, key) => {
+            const mappedKey = fieldMapping[key] || key; // 如果没有映射，则使用原字段名
+            acc[mappedKey] = skuObj[key];
+            return acc;
+        }, {});
+
+        // 所有规格已选择，加入购物车
+        cartStore.addCart({
+            id: DetailData.product_id,
+            name: DetailData.product_name,
+            picture: DetailData.product_img,
+            price: DetailData.sku_price,
+            count: count.value,
+            ...mappedSkuObj,  // 将映射后的规格值传入
+        });
+
+        ElMessage.success("加入成功！");
+    } else {
+        ElMessage.warning("请选择完整的规格");
+    }
+};
+
+
+const count = ref(1);
+const countChange = (value) => {
+    if (value < 1) {
+        count.value = 1;
+    } else {
+        count.value = value;
+    }
+};
+onMounted(() => {
+    getGoods();
+});
+
+
+const imagePaths = (name) => {
+    return new URL(`../../assets/${name}`, import.meta.url).href;
+};
+
+</script>
+
+
 <template>
     <div class="xtx-goods-page">
-        <div class="container">
+        <div v-if="!DetailData.product_id" class="loading-container">
+            <el-empty description="商品不存在或已下架" :image-size="200">
+                <template #extra>
+                    <el-button type="primary" @click="$router.push('/')">
+                        返回首页
+                    </el-button>
+                </template>
+            </el-empty>
+        </div>
+
+        <div class="container" v-else>
             <div class="bread-container">
-                <!-- 左上角面包屑 -->
                 <el-breadcrumb separator=">">
                     <el-breadcrumb-item to="/">首页</el-breadcrumb-item>
                     <el-breadcrumb-item to="/">
-                        {{ ifData.ifmatchDataName }}
+                        {{ DetailData.category_main_title }}
                     </el-breadcrumb-item>
                     <el-breadcrumb-item to="/">
-                        {{ ifData.ifchildrenDataName }}
+                        {{ DetailData.product_name }}
                     </el-breadcrumb-item>
                 </el-breadcrumb>
             </div>
 
-            <!-- 商品信息 -->
+
             <div class="info-container">
                 <div>
                     <div class="goods-info">
                         <div class="media">
-                            <!-- 图片预览区，增加骨架屏 -->
-                            <div v-if="!children.picture" class="skeleton-loader">
-                                <!-- 占位符加载 -->
-                                <div class="skeleton-image">加载中....</div>
-                            </div>
-                            <img v-else :src="children.picture" alt="" class="product-image" />
-
-                            <!-- 统计数量 -->
+                            <img :src="DetailData.product_img" alt="" class="product-image" />
                             <ul class="goods-sales">
                                 <li>
                                     <p>销量人气</p>
-                                    <p>{{ ifData.ifrandomList1 }}{{ ifData.ifadd }}</p>
+                                    <p>{{ DetailData.product_order_num }}</p>
                                     <p><i class="iconfont icon-task-filling"></i>销量人气</p>
                                 </li>
                                 <li>
                                     <p>商品评价</p>
-                                    <p>{{ ifData.ifrandomList2 }} {{ ifData.ifadd }}</p>
-
+                                    <p>{{ DetailData.product_description ? DetailData.product_description : 0 }}</p>
                                     <p><i class="iconfont icon-comment-filling"></i>查看评价</p>
                                 </li>
                                 <li>
-                                    <p>收藏人气</p>
-                                    <p>{{ ifData.ifrandomList3 }} {{ ifData.ifadd }}</p>
+                                    <p>上架时间</p>
+                                    <p>{{ DetailData.product_created_at }}</p>
 
-                                    <p><i class="iconfont icon-favorite-filling"></i>收藏商品</p>
+                                    <p><i class="iconfont icon-favorite-filling"></i>上架时间</p>
                                 </li>
                                 <li>
                                     <p>剩余宠物</p>
-                                    <p v-if="children.picture && children.orderNum">
-                                        {{ children.orderNum }}+
+                                    <p>
+                                        {{ DetailData.sku_quantity }}
                                     </p>
-                                    <p v-else-if="!children.picture">加载中....</p>
-                                    <p v-else>{{ randomList.Number4 }}+</p>
                                     <p><i class="iconfont icon-dynamic-filling"></i>剩余数量</p>
                                 </li>
                             </ul>
                         </div>
 
                         <div class="spec">
-                            <!-- 商品信息区 -->
-                            <p class="g-name">{{ children.name }}</p>
+
+                            <p class="g-name">{{ DetailData.product_name }}</p>
                             <p class="g-price">
-                                <span v-show="children.picture">{{ children.price }}</span>
-                                <span>{{ ifData.ifPrice }}</span>
+                                <span>{{ DetailData.sku_price }}</span>
+                                <span></span>
                             </p>
                             <div class="g-service">
                                 <dl>
@@ -79,31 +200,35 @@
                                     </dd>
                                 </dl>
                             </div>
-                            <!-- sku组件 -->
-                            <Sku :goods="goods.sku" @change="skuChange"></Sku>
-                            <!-- 数据组件 -->
-                            <el-input-number v-model="count" @change="countChange" />
-                            <!-- 按钮组件 -->
-                            <div>
-                                <el-button size="large" class="btn" @click="addCart">
-                                    加入购物车
+
+                            <Sku v-if="DetailData.specifications && DetailData.specifications.length"
+                                :goods="DetailData.specifications" :disabled="!canOperateGoods" @change="skuChange" />
+
+                            <el-input-number v-model="count" @change="countChange" :disabled="!canOperateGoods" />
+
+                            <div class="button-group">
+                                <el-button size="large" class="btn" type="primary" @click="addCart"
+                                    :disabled="!canOperateGoods">
+                                    {{ goodsStatus.message || '加入购物车' }}
                                 </el-button>
-                                <el-button size="large" class="btn" @click="$router.push('/cartlist')">
+
+                                <el-button size="large" class="btn" @click="$router.push('/cartlist')"
+                                    :disabled="!canOperateGoods">
                                     去购物车结算
                                 </el-button>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 商品详情 -->
-                    <div class="goods-footer" v-if="children && randomList">
+
+                    <div class="goods-footer">
                         <div class="goods-article">
                             <div class="goods-tabs">
                                 <nav>
                                     <a>商品详情</a>
                                 </nav>
                                 <div class="goods-detail" v-for="(img, index) in images" :key="index">
-                                    <!-- 引入v-lazy图片懒加载指令，加载静态资源图片 -->
+
                                     <img v-lazy="imagePaths(img.src)" alt="123" />
                                 </div>
                             </div>
@@ -113,105 +238,10 @@
             </div>
         </div>
     </div>
+
 </template>
 
-<script setup>
-import { RandomList } from "@/apis/detail";
-import { useRoute } from "vue-router";
-import { onMounted, reactive, ref, computed } from "vue";
-import { ElMessage } from "element-plus";
-import { useCartStore } from "@/stores/cartStore";
-import Sku from "@/components/Sku/index.vue";
-import { getCategoryAPI } from "@/apis/category";
-// 引用 Pinia store 中的数据
-const cartStore = useCartStore();
-const route = useRoute();
-const goods = ref({});
-const children = reactive({});
-const randomList = RandomList();
-const matchData = reactive({});
-const images = [
-    { src: "商品详情1.webp", alt: "商品1" },
-    { src: "商品详情2.webp", alt: "商品2" },
-    { src: "商品详情3.webp", alt: "商品3" },
-];
-//用户选中某个宠物跳转页面后执行
-const getGoods = async () => {
-    //接口设计问题，实际获取的是全部数据，并不是单个宠物数据
-    const { data } = await getCategoryAPI();
-    const dataWithChildren = data.filter((item) => item.children); //过滤出children
-    //找到与宠物id对应的children模块
-    const datas = dataWithChildren.find((item) =>
-        item.children.some((child) => child.id === route.params.id)
-    );
-    //数据合并
-    Object.assign(matchData, datas);
-    goods.value = matchData.children.find((item) => item.id === route.params.id);
-    //合并对象进行面包屑渲染
-    Object.assign(children, goods.value);
-};
-let skuObj = {};
-const skuChange = (sku) => {
-    skuObj = sku; //接收sku组件传出的数据
-};
-const addCart = () => {
-    //点击加入购物车执行的操作
-    if (skuObj.sex && skuObj.color) {
-        //确认规格全选
-        cartStore.addCart({
-            //将全部数据加入
-            id: goods.value.id,
-            name: goods.value.name,
-            picture: goods.value.picture,
-            price: goods.value.price,
-            count: count.value,
-            sex: skuObj.sex,
-            color: skuObj.color,
-        });
-        ElMessage.success("加入成功！");
-    } else {
-        ElMessage.warning("请选择规格");
-    }
-};
-const count = ref(1);
-const countChange = (value) => {
-    if (value < 1) {
-        count.value = 1;
-    } else {
-        count.value = value;
-    }
-};
-onMounted(() => {
-    getGoods();
-});
-const ifData = computed(() => {
-    //computed数据缓存，节约性能消耗
-    //通过判断商品数据是否获取完毕来选择加载数据还是显示骨架屏
-    //销量人气，商品评价，收藏人气，剩余宠物均为随机数模拟数据
-    return {
-        ifmatchDataName:
-            children.picture && randomList ? matchData.name : "加载中...",
-        ifchildrenDataName:
-            children.picture && randomList ? children.name : "加载中...",
-        ifrandomList1:
-            children.picture && randomList ? randomList.Number1 : "加载中...",
-        ifrandomList2:
-            children.picture && randomList ? randomList.Number2 : "加载中...",
-        ifrandomList3:
-            children.picture && randomList ? randomList.Number3 : "加载中...",
-        ifadd: children.picture && randomList ? "+" : "",
-        ifPrice:
-            children.picture && randomList
-                ? randomList.OldPrice + children.price
-                : "加载中...",
-    };
-});
 
-const imagePaths = (name) => {
-    return new URL(`../../assets/${name}`, import.meta.url).href;
-};
-
-</script>
 
 <style scoped lang="less">
 .xtx-goods-page {
@@ -485,5 +515,25 @@ const imagePaths = (name) => {
 .product-image {
     width: 100%;
     height: auto;
+}
+
+.loading-container {
+    min-height: 400px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.button-group {
+    margin-top: 20px;
+
+    .btn {
+        margin-right: 10px;
+
+        &:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+    }
 }
 </style>

@@ -17,7 +17,7 @@ const { getPetList } = usePetListStore()
           <h4>分类推荐 <small>根据您的购买或浏览记录推荐</small></h4>
           <ul>
             <li v-for="i in item.products" :key="i.id">
-              <router-link :to="`/detail/${i.id}`">
+              <router-link :to="`/Detail/${i.id}`">
                 <img :src="i.img" alt="" />
                 <div class="info">
                   {{ i.name }}

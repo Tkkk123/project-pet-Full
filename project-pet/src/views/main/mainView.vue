@@ -5,7 +5,6 @@
         <ScrollbarNew />
         <Product />
     </div>
-
 </template>
 
 <script setup>
