@@ -19,12 +19,16 @@
 - Node.js
 - Express.js
 - MySQL 数据库
+- Redis 缓存
+  - Token 存储
+  - 用户会话管理
 
 ## 功能特性
 
 - 用户认证
   - 登录/注册
-  - 用户信息管理
+  - 基于 Redis 的 Token 认证
+  - Cookie-based 会话管理
 - 商品相关
   - 商品分类展示
   - 商品详情
@@ -40,4 +44,33 @@
   - 个人信息修改
   - 收货地址管理
 
-## 项目结构
+## 本地开发
+
+### 前端启动
+
+cd project-pet
+pnpm install
+pnpm dev
+
+### 后端启动
+
+cd pet-api
+pnpm install
+nodemon app.js
+
+## 环境要求
+
+- Node.js
+- MySQL
+- Redis
+- pnpm
+
+## 认证机制
+
+项目使用基于 Redis 的 Token 认证机制：
+
+1. 用户登录后生成唯一 Token
+2. Token 和用户信息存储在 Redis 中
+3. Token 通过 Cookie 传递
+4. 使用中间件统一验证 Token
+5. Token 失效时需要重新登录
