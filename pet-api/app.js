@@ -9,6 +9,7 @@ const logout = require("./routes/logout");
 const address = require("./routes/address");
 const order = require("./routes/order");
 const user = require("./routes/user");
+const pet = require("./routes/pet");
 var app = express();
 const cors = require("cors");
 var http = require("http");
@@ -39,7 +40,8 @@ app.use(cookieParser())
   .use("/", logout)
   .use("/", address)
   .use("/", order)
-  .use("/", user);
+  .use("/", user)
+  .use("/member", pet)
 server.listen(port, () => {
   console.log(`服务器正在运行，访问地址为: http://localhost:${port}/`);
 });
