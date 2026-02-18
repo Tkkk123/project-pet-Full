@@ -12,7 +12,7 @@ const quickLinks = [
     <!-- 用户信息卡片 -->
     <div class="info-card">
       <div class="avatar">
-        <img v-lazy="userStore.userInfo.avatar || 'https://img.yzcdn.cn/vant/cat.jpeg'" alt="用户头像">
+        <img v-lazy="userStore.userInfo?.avatar || 'https://img.yzcdn.cn/vant/cat.jpeg'" alt="用户头像">
       </div>
       <div class="info">
         <h3>{{ userStore.userInfo?.account }}</h3>

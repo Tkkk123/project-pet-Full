@@ -14,6 +14,7 @@ const recommend = require("./routes/recommend");
 const customerService = require("./routes/customerService");
 const reminderRouter = require("./routes/reminder");
 const authRouter = require("./routes/auth");
+const aiRouter = require("./routes/ai");
 
 
 
@@ -21,7 +22,7 @@ var app = express();
 const cors = require("cors");
 var http = require("http");
 const cookieParser = require('cookie-parser');
-const port = 8234;
+const port = Number(process.env.PORT) || 8234;
 var server = http.createServer(app);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -52,7 +53,8 @@ app.use(cookieParser())
   .use("/member", recommend)
   .use("/member", customerService)
   .use("/member", reminderRouter)
-  .use("/auth", authRouter);
+  .use("/auth", authRouter)
+  .use("/ai", aiRouter);
 server.listen(port, () => {
   console.log(`服务器正在运行，访问地址为: http://localhost:${port}/`);
 });

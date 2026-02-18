@@ -116,7 +116,7 @@ const doRegister = () => {
             agree: true
           }
         } else {
-          ElMessage.error(res.msg || '注册失败')
+          ElMessage.error(res.message || '注册失败')
         }
       } catch (error) {
         ElMessage.error('注册失败，请稍后重试')

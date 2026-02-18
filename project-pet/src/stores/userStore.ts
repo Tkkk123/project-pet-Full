@@ -5,8 +5,10 @@ import { useCartStore } from "./cartStore";
 
 // 定义用户信息的类型
 interface UserInfo {
+  token: string;
+  userId: number;
   account: string;
-  password: string;
+  avatar?: string;
 }
 
 export const useUserStore = defineStore(
@@ -21,12 +23,12 @@ export const useUserStore = defineStore(
     const login = async ({ account, password }: { account: string; password: string }): Promise<boolean> => {
       try {
         const res = await loginAPI({ account, password });
-        if (res.data.code === 200) {
-          userInfo.value = res.data.data;
+        if (res.code === 200) {
+          userInfo.value = res.data;
           // 更新用户信息
           return true;
         } else {
-          console.error(res.data.message);
+          console.error(res.message);
           return false;
         }
       } catch (error) {
@@ -39,8 +41,12 @@ export const useUserStore = defineStore(
     const verifyToken = async (): Promise<boolean> => {
       try {
         const res = await checkTokenApi();
-        if (res.data.code === 200) {
-          userInfo.value = res.data.data;
+        if (res.code === 200) {
+          userInfo.value = {
+            token: userInfo.value?.token || "",
+            userId: res.data.userId,
+            account: res.data.account
+          };
           // console.log("Token 校验成功", userInfo.value);
           // 更新用户信息
           return true;
@@ -54,6 +60,10 @@ export const useUserStore = defineStore(
         console.log("用户Token已清除");
         return false;
       }
+    };
+
+    const clearUserInfo = () => {
+      userInfo.value = null;
     };
 
     // 退出登录方法
@@ -72,6 +82,7 @@ export const useUserStore = defineStore(
       login,
       verifyToken,
       logout,
+      clearUserInfo,
     };
   },
   {

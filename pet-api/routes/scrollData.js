@@ -2,6 +2,7 @@ var express = require("express");
 var router = express.Router();
 const dbconfig = require("../util/dbconfig");
 const interface = "ScrollData";
+const response = require("../util/responseHandler");
 
 // 查询数据并返回
 router.get(`/${interface}`, function (req, res, next) {
@@ -25,11 +26,9 @@ router.get(`/${interface}`, function (req, res, next) {
   const callBack = (err, data) => {
     if (err) {
       console.log(interface + "接口连接失败");
-      res.status(500).send({ message: "数据库连接失败" }); // 添加错误处理
+      response.error(res, err, "数据库连接失败");
     } else {
-      res.send({
-        ScrollData: formatScrollData(data), // 修改为更直观的函数名称
-      });
+      response.success(res, formatScrollData(data), "获取轮播数据成功");
     }
   };
 

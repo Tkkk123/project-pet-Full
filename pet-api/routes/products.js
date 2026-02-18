@@ -2,6 +2,7 @@ var express = require("express");
 var router = express.Router();
 const dbconfig = require("../util/dbconfig");
 const interface = "PetData";
+const response = require("../util/responseHandler");
 
 // 查询所有产品及其对应的SKU信息
 router.get(`/${interface}`, function (req, res, next) {
@@ -27,12 +28,10 @@ router.get(`/${interface}`, function (req, res, next) {
   const callBack = (err, data) => {
     if (err) {
       console.log(interface + "接口连接失败");
-      res.status(500).send({ message: "数据库连接失败" });
+      response.error(res, err, "数据库连接失败");
     } else {
       const processedData = processData(data); // 处理查询结果
-      res.send({
-        Category: processedData, // 将处理后的数据返回给前端
-      });
+      response.success(res, processedData, "获取商品列表成功");
     }
   };
   dbconfig.sqlConnect(sql, sqlArr, callBack);

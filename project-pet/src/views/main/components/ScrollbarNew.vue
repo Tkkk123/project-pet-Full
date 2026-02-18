@@ -2,7 +2,7 @@
 import Panel from './Panel.vue';
 import { useScrollStore } from '@/stores/HotStore'
 const { HotList, getHot } = useScrollStore()
-if (HotList.length === 0) {
+if (!HotList.products.length) {
     getHot()
 }
 

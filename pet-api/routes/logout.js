@@ -2,30 +2,26 @@ var express = require("express");
 const redisClient = require("../util/redisClient");
 var router = express.Router();
 const interface = "logout";
+const response = require("../util/responseHandler");
 
 router.post(`/${interface}`, async (req, res) => {
-    const token = req.cookies.token;
+    const authHeader = req.headers.authorization;
+    const token = typeof authHeader === "string" && authHeader.startsWith("Bearer ")
+        ? authHeader.slice("Bearer ".length).trim()
+        : "";
 
-    if (!token) {
-        return res.status(400).send({ message: "未登录" });
-    }
+    if (!token) return response.unauthorized(res, "未登录或未提供 token");
 
     try {
-        // 删除 Redis 中的 token
-        const response = await redisClient.del(token);
+        const delCount = await redisClient.del(token);
 
-        if (response === 0) {
-            // token 不存在
-            return res.status(404).send({ message: "Token 不存在或已过期" });
+        if (delCount === 0) {
+            return response.error(res, new Error("Token 不存在或已过期"), "Token 不存在或已过期", 404);
         }
 
-        // 清除 Cookie
-        res.clearCookie("token");
-
-        res.send({ code: 200, message: "退出登录成功" });
+        response.success(res, null, "退出登录成功");
     } catch (err) {
-        console.error("Redis 删除失败：", err);
-        return res.status(500).send({ message: "退出登录失败" });
+        response.error(res, err, "退出登录失败");
     }
 });
 

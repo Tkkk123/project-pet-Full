@@ -2,37 +2,28 @@ var express = require("express");
 var router = express.Router();
 const redisClient = require("../util/redisClient"); // 引入 Redis 客户端
 const interface = "verify-token";
+const response = require("../util/responseHandler");
 
 router.get(`/${interface}`, async (req, res) => {
-    const token = req.cookies.token; // 从 Cookie 中获取 token
+    const authHeader = req.headers.authorization;
+    const token = typeof authHeader === "string" && authHeader.startsWith("Bearer ")
+        ? authHeader.slice("Bearer ".length).trim()
+        : "";
 
-
-    if (!token) {
-        return res.status(401).send({ message: "未登录或 token 不存在" });
-    }
+    if (!token) return response.unauthorized(res, "未登录或未提供 token");
 
     try {
-        // 从 Redis 中获取 token 数据
         const tokenDataString = await redisClient.get(token);
 
         if (!tokenDataString) {
-            return res.status(401).send({ message: "token 无效或已过期" });
+            return response.unauthorized(res, "token 无效或已过期");
         }
 
-        // 解析 token 数据
         const tokenData = JSON.parse(tokenDataString);
 
-
-        res.send({
-            data: {
-                code: 200,
-                message: "token 验证通过",
-                data: { userId: tokenData.userId, account: tokenData.account },
-            }
-        });
+        response.success(res, { userId: tokenData.userId, account: tokenData.account }, "token 验证通过");
     } catch (err) {
-        console.error("Redis 读取错误：", err);
-        res.status(500).send({ message: "服务器内部错误" });
+        response.error(res, err, "服务器内部错误");
     }
 });
 

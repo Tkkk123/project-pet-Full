@@ -1,14 +1,18 @@
 import { defineStore } from "pinia";
 import { ScrollApi } from "@/apis/ScrollData";
 import { reactive } from "vue";
-import { AxiosResponse } from "axios";
-import { PetDataResponse } from "@/types/PetDataResponse";
 
 export const useScrollStore = defineStore("Scroll", () => {
-  const HotList = reactive([]);
+  const HotList = reactive({
+    main_title: "",
+    sub_title: "",
+    products: [] as any[],
+  });
   const getHot = async () => {
-    const { ScrollData }: AxiosResponse<PetDataResponse> = await ScrollApi();
-    Object.assign(HotList, ScrollData)
+    const res = await ScrollApi();
+    if (res.code === 200 && res.data) {
+      Object.assign(HotList, res.data);
+    }
   };
 
   return {

@@ -1,22 +1,47 @@
 // axios基础的封装
-import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from "axios";
+import axios, { InternalAxiosRequestConfig, AxiosRequestConfig } from "axios";
 import { AxiosError } from "axios";
 import { ElMessage } from "element-plus";
 import { hideLoading, showLoading } from "@/loading/loading";
 import { ApiResponse } from "@/types/api";
 
 // 创建自定义 axios 实例
-const request: AxiosInstance = axios.create({
+const instance = axios.create({
   baseURL: "http://localhost:8234", //请求的地址基路径
   timeout: 5000, // 设置请求超时时间
   withCredentials: true  // 添加这行，确保跨域请求时携带 cookie
 });
 
+const request = <T = any>(config: AxiosRequestConfig): Promise<T> => {
+  return instance.request<any, T>(config);
+};
+
+const getPersistedToken = (): string => {
+  try {
+    const raw = localStorage.getItem("user");
+    if (!raw) return "";
+    const parsed = JSON.parse(raw);
+    const token = parsed?.userInfo?.token;
+    return typeof token === "string" ? token : "";
+  } catch {
+    return "";
+  }
+};
+
 // 请求拦截器类型
-request.interceptors.request.use(
+instance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     //网络请求时执行全局加载
     showLoading();
+
+    const token = getPersistedToken();
+    if (token) {
+      config.headers = config.headers || {};
+      if (!("Authorization" in config.headers)) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+
     return config;
   },
   (error: any) => {
@@ -28,7 +53,7 @@ request.interceptors.request.use(
 );
 
 // 响应拦截器类型
-request.interceptors.response.use(
+instance.interceptors.response.use(
   (response) => {
     //网络请求正常响应关闭全局加载
     hideLoading();

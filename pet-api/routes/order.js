@@ -46,46 +46,65 @@ router.post('/member/order', verifyToken, async (req, res) => {
     const { products, totalPrice } = req.body
 
     try {
-        // 开始事务
-        await dbconfig.sqlConnect('START TRANSACTION', [])
+        const conn = await dbconfig.getConnection()
 
-        // 创建订单
-        const orderResult = await new Promise((resolve, reject) => {
-            dbconfig.sqlConnect(orderQueries.createOrder,
-                [userId, 'pending', totalPrice],
-                (err, result) => err ? reject(err) : resolve(result)
-            )
-        })
-
-        const orderId = orderResult.insertId
-
-        // 创建订单详情
-        for (const product of products) {
+        try {
             await new Promise((resolve, reject) => {
-                dbconfig.sqlConnect(orderQueries.createOrderDetail, [
-                    orderId,
-                    product.id,
-                    product.count,
-                    product.price,
-                    product.color,
-                    product.size,
-                    product.gender,
-                    product.name,
-                    product.picture
-                ], (err) => err ? reject(err) : resolve())
+                conn.beginTransaction((err) => (err ? reject(err) : resolve()))
             })
+
+            const orderResult = await new Promise((resolve, reject) => {
+                conn.query(
+                    orderQueries.createOrder,
+                    [userId, 'pending', totalPrice],
+                    (err, result) => (err ? reject(err) : resolve(result))
+                )
+            })
+
+            const orderId = orderResult.insertId
+
+            for (const product of products) {
+                await new Promise((resolve, reject) => {
+                    conn.query(
+                        orderQueries.createOrderDetail,
+                        [
+                            orderId,
+                            product.id,
+                            product.count,
+                            product.price,
+                            product.color,
+                            product.size,
+                            product.gender,
+                            product.name,
+                            product.picture
+                        ],
+                        (err) => (err ? reject(err) : resolve())
+                    )
+                })
+            }
+
+            await new Promise((resolve, reject) => {
+                conn.commit((err) => (err ? reject(err) : resolve()))
+            })
+
+            res.json({
+                code: 200,
+                message: '订单创建成功',
+                data: { orderId }
+            })
+        } catch (error) {
+            await new Promise((resolve) => conn.rollback(() => resolve()))
+            console.error('创建订单失败:', error)
+            res.status(500).json({
+                code: 500,
+                message: '创建订单失败',
+                error: error.message
+            })
+        } finally {
+            conn.release()
         }
 
-        await dbconfig.sqlConnect('COMMIT', [])
-
-        res.json({
-            code: 200,
-            message: '订单创建成功',
-            data: { orderId }
-        })
-
     } catch (error) {
-        await dbconfig.sqlConnect('ROLLBACK', [])
         console.error('创建订单失败:', error)
         res.status(500).json({
             code: 500,
