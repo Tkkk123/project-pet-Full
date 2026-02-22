@@ -5,9 +5,6 @@ const response = require('../util/responseHandler')
 
 const router = express.Router()
 
-router.get('/recommend/test', (req, res) => {
-  res.json({ message: 'recommend route ok' })
-})
 
 router.get('/recommend/:petId', verifyToken, async (req, res) => {
   try {

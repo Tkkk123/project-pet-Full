@@ -96,6 +96,49 @@ function appendAssistantLoadingMessage() {
     return msg;
 }
 
+// ===== [新增] 系统消息发送：不展示用户气泡、不污染输入框 =====
+async function sendSystemMessage(message: string) {
+    if (sending.value) return;
+
+    const systemText = message.trim();
+    if (!systemText) return;
+
+    const assistantMsg = appendAssistantLoadingMessage();
+    await safeScroll();
+
+    sending.value = true;
+
+    streamChatWithAI(
+        systemText,
+        (chunk) => {
+            assistantMsg.content += chunk;
+            scrollToBottom();
+        },
+        () => {
+            assistantMsg.loading = false;
+            sending.value = false;
+            safeScroll();
+        },
+        (err) => {
+            console.error("前端捕获错误:", err);
+            assistantMsg.loading = false;
+            sending.value = false;
+            if (!assistantMsg.content) {
+                assistantMsg.content = "请求失败，请稍后重试";
+            } else {
+                assistantMsg.content += "\n[请求中断]";
+            }
+            showError(err?.message || "AI 请求失败");
+            safeScroll();
+        }
+    );
+}
+
+// ===== [新增] 暴露方法给父组件调用 =====
+defineExpose({
+    sendSystemMessage
+});
+
 async function send() {
     if (sending.value || !canSend.value) return;
 

@@ -5,16 +5,38 @@ export async function streamChatWithAI(
   onError: (err: any) => void
 ) {
   try {
+    const getPersistedToken = (): string => {
+      try {
+        const raw = localStorage.getItem("user");
+        if (!raw) return "";
+        const parsed = JSON.parse(raw);
+        const token = parsed?.userInfo?.token;
+        return typeof token === "string" ? token : "";
+      } catch {
+        return "";
+      }
+    };
+
+    const token = getPersistedToken();
+
     const response = await fetch("http://localhost:8234/ai/chat", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
       },
+      credentials: "include",
       body: JSON.stringify({ message })
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      let serverMessage = "";
+      try {
+        const data = await response.json();
+        serverMessage = typeof data?.message === "string" ? data.message : "";
+      } catch { }
+
+      throw new Error(serverMessage || `HTTP error! status: ${response.status}`);
     }
 
     if (!response.body) {
