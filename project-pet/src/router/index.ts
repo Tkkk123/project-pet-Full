@@ -13,7 +13,7 @@ const router = createRouter({
           component: mainView,
         },
         {
-          path: "Detail/:id",
+          path: "detail/:id",
           component: () => import('@/views/Detail/DetailView.vue'),
         },
         {
@@ -43,6 +43,10 @@ const router = createRouter({
             {
               path: "order",
               component: () => import('@/views/Member/components/UserOrder.vue'),
+            },
+            {
+              path: "pet",
+              component: () => import('@/views/Member/components/PetManage.vue')
             },
             {
               path: "reset-password",

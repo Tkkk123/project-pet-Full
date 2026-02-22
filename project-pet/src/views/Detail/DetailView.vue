@@ -5,14 +5,79 @@ import { ElMessage } from "element-plus";
 import { useCartStore } from "@/stores/cartStore";
 import Sku from "@/views/Sku/index.vue";
 import { getDetailAPI } from "@/apis/DetailData";
+import request from "@/utils/request";
+import Card from "@/views/main/components/Card.vue";
 const cartStore = useCartStore();
 const route = useRoute();
 const DetailData = reactive({});
-const images = [
-    { src: "商品详情1.webp", alt: "商品1" },
-    { src: "商品详情2.webp", alt: "商品2" },
-    { src: "商品详情3.webp", alt: "商品3" },
-];
+const recommendList = ref([]);
+const recommendLoading = ref(false);
+const activeTab = ref("detail");
+
+const productDisplayName = computed(() => {
+    return DetailData.product_name || "该商品";
+});
+
+const detailHtml = computed(() => {
+    const name = productDisplayName.value;
+    const category = DetailData.category_main_title || "宠物";
+    return `
+        <div style="line-height: 1.8; color: #333;">
+            <h3 style="margin: 0 0 12px; font-size: 18px;">${name} 图文详情</h3>
+            <p style="margin: 0 0 10px;">
+                ${name} 为本店精选 ${category} 类目商品，支持正规渠道检疫与健康保障服务。
+            </p>
+            <p style="margin: 0 0 10px;">
+                购买建议：首次饲养建议选择温顺亲人型；到家后注意环境适应与饮食过渡，避免频繁洗澡与惊吓。
+            </p>
+        </div>
+    `;
+});
+
+const paramRows = computed(() => {
+    const specs = Array.isArray(DetailData.specifications) ? DetailData.specifications : [];
+    const specNames = specs.map((s) => s?.special_name).filter(Boolean).join(" / ");
+    return [
+        { name: "商品名称", value: DetailData.product_name || "—" },
+        { name: "所属分类", value: DetailData.category_main_title || "—" },
+        { name: "上架时间", value: DetailData.product_created_at || "—" },
+        { name: "商品价格", value: DetailData.sku_price != null ? `¥${DetailData.sku_price}` : "—" },
+        { name: "库存数量", value: DetailData.sku_quantity != null ? String(DetailData.sku_quantity) : "—" },
+        { name: "销量人气", value: DetailData.product_order_num != null ? String(DetailData.product_order_num) : "—" },
+        { name: "可选规格", value: specNames || "—" },
+    ];
+});
+
+const mockReviews = computed(() => {
+    const name = productDisplayName.value;
+    return [
+        {
+            id: "r1",
+            user: "小橘子",
+            time: "2026-01-12",
+            rate: 5,
+            content: `${name} 到家状态很好，客服解答很耐心，整体体验不错。`,
+            avatar: "https://img.yzcdn.cn/vant/cat.jpeg",
+        },
+        {
+            id: "r2",
+            user: "阿花",
+            time: "2026-01-06",
+            rate: 4,
+            content: "包装与物流都很稳，建议增加更多饲养指南和注意事项说明。",
+            avatar: "https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg",
+        },
+        {
+            id: "r3",
+            user: "小贝壳",
+            time: "2025-12-29",
+            rate: 5,
+            content: "性格亲人，上手饲养更安心；希望后续能提供更多相关用品推荐。",
+            avatar: "https://img.yzcdn.cn/vant/cat.jpeg",
+        },
+    ];
+});
+
 
 // 商品状态检查
 const goodsStatus = reactive({
@@ -108,14 +173,81 @@ const countChange = (value) => {
         count.value = value;
     }
 };
+
+const getPersistedToken = () => {
+    try {
+        const raw = localStorage.getItem("user");
+        if (!raw) return "";
+        const parsed = JSON.parse(raw);
+        const token = parsed?.userInfo?.token;
+        return typeof token === "string" ? token : "";
+    } catch {
+        return "";
+    }
+};
+
+const mapRecommendProductToCard = (row) => {
+    const id = row?.id ?? row?.product_id;
+    const name = row?.name ?? row?.product_name ?? "";
+    const img = row?.img ?? row?.product_img ?? "";
+    const price = row?.sku_price ?? row?.price ?? 0;
+    const quantity = row?.sku_quantity ?? row?.quantity ?? 0;
+    const discount = row?.sku_discount ?? row?.discount ?? 0;
+
+    return {
+        id,
+        name,
+        img,
+        sku: {
+            price,
+            quantity,
+            discount,
+        },
+    };
+};
+
+const getRecommend = async () => {
+    const token = getPersistedToken();
+    if (!token) {
+        recommendList.value = [];
+        return;
+    }
+
+    recommendLoading.value = true;
+    try {
+        const petRes = await request({
+            url: "/member/pet",
+            method: "GET",
+        });
+
+        const pets = Array.isArray(petRes?.data) ? petRes.data : [];
+        const firstPet = pets[0];
+        const petId = firstPet?.id ?? firstPet?.pet_id ?? firstPet?.petId;
+        if (!petId) {
+            recommendList.value = [];
+            return;
+        }
+
+        const recRes = await request({
+            url: `/member/recommend/${petId}`,
+            method: "GET",
+        });
+
+        const rows = Array.isArray(recRes?.data) ? recRes.data : [];
+        recommendList.value = rows.map(mapRecommendProductToCard).filter((item) => item?.id).slice(0, 6);
+    } catch {
+        recommendList.value = [];
+    } finally {
+        recommendLoading.value = false;
+    }
+};
 onMounted(() => {
     getGoods();
+    getRecommend();
 });
 
 
-const imagePaths = (name) => {
-    return new URL(`../../assets/${name}`, import.meta.url).href;
-};
+
 
 </script>
 
@@ -221,16 +353,64 @@ const imagePaths = (name) => {
                     </div>
 
 
+                    <div v-if="recommendList.length" class="guess-like">
+                        <div class="guess-like__head">
+                            <h3 class="guess-like__title">猜你喜欢</h3>
+                        </div>
+                        <div class="guess-like__body" v-loading="recommendLoading">
+                            <ul class="guess-like__list">
+                                <li v-for="item in recommendList" :key="item.id">
+                                    <Card :cards="item" />
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
                     <div class="goods-footer">
                         <div class="goods-article">
                             <div class="goods-tabs">
-                                <nav>
-                                    <a>商品详情</a>
-                                </nav>
-                                <div class="goods-detail" v-for="(img, index) in images" :key="index">
-
-                                    <img v-lazy="imagePaths(img.src)" alt="123" />
-                                </div>
+                                <el-tabs v-model="activeTab">
+                                    <el-tab-pane label="图文详情" name="detail">
+                                        <div class="detail-rich" v-html="detailHtml"></div>
+                                    </el-tab-pane>
+                                    <el-tab-pane label="商品参数" name="params">
+                                        <el-table :data="paramRows" border style="width: 100%">
+                                            <el-table-column prop="name" label="参数" width="160" />
+                                            <el-table-column prop="value" label="内容" />
+                                        </el-table>
+                                    </el-tab-pane>
+                                    <el-tab-pane label="用户评价" name="reviews">
+                                        <div class="review-list">
+                                            <el-card v-for="r in mockReviews" :key="r.id" class="review-card"
+                                                shadow="never">
+                                                <div class="review-head">
+                                                    <el-avatar :size="36" :src="r.avatar" />
+                                                    <div class="review-meta">
+                                                        <div class="review-user">{{ r.user }}</div>
+                                                        <div class="review-time">{{ r.time }}</div>
+                                                    </div>
+                                                    <el-rate :model-value="r.rate" disabled />
+                                                </div>
+                                                <div class="review-content">{{ r.content }}</div>
+                                            </el-card>
+                                        </div>
+                                    </el-tab-pane>
+                                </el-tabs>
+                            </div>
+                        </div>
+                        <div class="goods-aside">
+                            <div class="goods-warn">
+                                <el-alert title="购买须知" type="info" show-icon :closable="false">
+                                    <template #default>
+                                        下单前请确认规格与数量；到家后建议静养适应环境；如有问题可联系在线客服。
+                                    </template>
+                                </el-alert>
+                                <el-divider />
+                                <el-alert title="售后保障" type="success" show-icon :closable="false">
+                                    <template #default>
+                                        支持7天无忧服务与快速退款（展示占位内容，可对接真实规则）。
+                                    </template>
+                                </el-alert>
                             </div>
                         </div>
                     </div>
@@ -535,5 +715,94 @@ const imagePaths = (name) => {
             opacity: 0.6;
         }
     }
+}
+
+.guess-like {
+    margin-top: 20px;
+    background: #fff;
+    border-radius: 4px;
+    padding: 20px;
+}
+
+.guess-like__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f5f5f5;
+}
+
+.guess-like__title {
+    font-size: 18px;
+    font-weight: 500;
+    margin: 0;
+    color: #333;
+}
+
+.guess-like__body {
+    padding-top: 20px;
+}
+
+.guess-like__list {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.goods-footer {
+    .goods-tabs {
+        padding: 0 20px 20px;
+    }
+
+    .goods-warn {
+        margin-top: 0;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+}
+
+.detail-rich :deep(img) {
+    max-width: 100%;
+    display: block;
+}
+
+.review-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 10px 0;
+}
+
+.review-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.review-meta {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.review-user {
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+}
+
+.review-time {
+    font-size: 12px;
+    color: #999;
+}
+
+.review-content {
+    margin-top: 10px;
+    color: #666;
+    line-height: 1.8;
 }
 </style>

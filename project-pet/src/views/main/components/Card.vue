@@ -1,6 +1,6 @@
 <template>
     <!-- card组件模块，渲染宠物数据卡片 -->
-    <RouterLink :to="`/Detail/${cards.id}`" class="card">
+    <RouterLink :to="`/detail/${cards.id}`" class="card">
         <!-- 判断是否有折扣进行图标渲染 -->
         <i class="iconfont icon-03DMS_cuxiaoguanli" v-if="cards.sku.discount > 0.5"></i>
         <img :src="cards.img" alt="">

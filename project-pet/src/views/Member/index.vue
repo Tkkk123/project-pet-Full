@@ -7,6 +7,7 @@ const menuItems = [
     title: '我的账户',
     items: [
       { name: '个人中心', path: '/member', icon: 'icon-user' },
+      { name: '宠物档案', path: '/member/pet', icon: 'icon-user' },
       { name: '修改密码', path: '/member/reset-password', icon: 'icon-lock' }
     ]
   },
