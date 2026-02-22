@@ -3,7 +3,9 @@ import { useUserStore } from '@/stores/userStore'
 const userStore = useUserStore()
 
 const quickLinks = [
-  { name: '我的订单', icon: 'icon-order', path: '/member/order' }
+  { name: '我的订单', icon: 'icon-order', path: '/member/order' },
+  { name: '宠物档案', icon: 'icon-evaluate', path: '/member/pet' },
+  { name: '修改密码', icon: 'icon-lock', path: '/member/reset-password' }
 ]
 </script>
 

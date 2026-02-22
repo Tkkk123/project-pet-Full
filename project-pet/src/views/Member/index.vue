@@ -28,7 +28,8 @@ const menuItems = [
         <div v-for="menu in menuItems" :key="menu.title" class="menu-group">
           <h4>{{ menu.title }}</h4>
           <div class="links">
-            <RouterLink v-for="item in menu.items" :key="item.name" :to="item.path" class="menu-item">
+            <RouterLink v-for="item in menu.items" :key="item.name" :to="item.path" class="menu-item"
+              :exact="item.path === '/member'">
               <i :class="['iconfont', item.icon]"></i>
               {{ item.name }}
             </RouterLink>
@@ -45,7 +46,8 @@ const menuItems = [
 
 <style scoped lang="less">
 .member-layout {
-  width: 1240px;
+  max-width: 1240px;
+  width: 100%;
   margin: 20px auto;
   display: flex;
   gap: 20px;
@@ -89,7 +91,7 @@ const menuItems = [
           color: #ff6b35;
         }
 
-        &.router-link-active {
+        &.router-link-exact-active {
           color: #ff6b35;
           font-weight: 500;
 
@@ -114,6 +116,9 @@ const menuItems = [
     background-color: #fff;
     border-radius: 4px;
     padding: 20px;
+    /* 关键代码：防止子元素撑开 flex 容器 */
+    min-width: 0;
+    overflow: hidden;
   }
 }
 </style>

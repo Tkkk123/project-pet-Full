@@ -127,7 +127,7 @@ onMounted(async () => {
     </div>
 
     <div class="table-wrap">
-      <el-table :data="pets" v-loading="loading" width="100%">
+      <el-table :data="pets" v-loading="loading" style="width: 100%">
         <el-table-column prop="name" label="名称" min-width="120" />
         <el-table-column prop="species" label="物种" min-width="90" />
         <el-table-column prop="breed" label="品种" min-width="120" />
@@ -231,6 +231,10 @@ onMounted(async () => {
 
   .table-wrap {
     margin-top: 20px;
+    width: 100%;
+    /* 强制宽度为 100% */
+    overflow-x: auto;
+    /* 如果内部表格依然很大，允许在此处产生滚动条 */
   }
 
   .tags {
