@@ -11,7 +11,7 @@
  Target Server Version : 80017
  File Encoding         : 65001
 
- Date: 22/02/2026 13:20:52
+ Date: 22/02/2026 15:25:01
 */
 
 SET NAMES utf8mb4;
@@ -115,6 +115,8 @@ INSERT INTO `order_details` VALUES (20, 14, 822030198009306500, 1, 1632.36, '蓝
 INSERT INTO `order_details` VALUES (21, 15, 820230200006115200, 2, 1456.36, '红色', '大号', '母', '拉布拉多', 'http://pic1.jisuapi.cn/pet/upload/1.jpg', 0);
 INSERT INTO `order_details` VALUES (22, 15, 822030198009306500, 3, 1632.36, '红色', NULL, '母', '吉娃娃', 'http://pic1.jisuapi.cn/pet/upload/28.jpg', 0);
 INSERT INTO `order_details` VALUES (23, 100, 101, 30, 199.00, NULL, NULL, NULL, '幼犬专用狗粮', '/img/dog1.jpg', 2);
+INSERT INTO `order_details` VALUES (24, 101, 15238718450315340, 4, 1259.61, '蓝色', '小号', '母', '威尔斯猫', 'http://pic1.jisuapi.cn/pet/upload/197.jpg', NULL);
+INSERT INTO `order_details` VALUES (25, 101, 820000199701298300, 1, 1294.68, '蓝色', '大号', '公', '捷克狼犬', 'http://pic1.jisuapi.cn/pet/upload/15.jpg', NULL);
 
 -- ----------------------------
 -- Table structure for orders
@@ -150,6 +152,7 @@ INSERT INTO `orders` VALUES (13, 5, 'pending', 1036, '2026-02-18 22:03:02');
 INSERT INTO `orders` VALUES (14, 3, 'completed', 1665, '2026-02-18 22:06:39');
 INSERT INTO `orders` VALUES (15, 2, 'completed', 7966, '2026-02-18 22:16:03');
 INSERT INTO `orders` VALUES (100, 3, 'completed', 199, '2026-02-19 21:42:11');
+INSERT INTO `orders` VALUES (101, 7, 'completed', 6460, '2026-02-22 15:18:01');
 
 -- ----------------------------
 -- Table structure for payment_info
@@ -198,6 +201,7 @@ CREATE TABLE `pets`  (
 -- ----------------------------
 INSERT INTO `pets` VALUES (1, 3, '小白', 'dog', NULL, '2025-01-01', 5, '有肠胃问题', NULL, NULL, '小型犬,肠胃敏感', '2026-02-14 15:59:18', 0.03);
 INSERT INTO `pets` VALUES (2, 3, '小黑', 'dog', '柯基', '2023-01-01', 5, '健康良好', '无', '喜欢吃鸡肉味狗粮', '小型犬', '2026-02-15 17:17:23', 0.03);
+INSERT INTO `pets` VALUES (3, 3, 'test', 'dog', '金毛', '2002-12-01', 8.5, '无', '无', '无', '小型犬', '2026-02-22 14:04:55', 0.03);
 
 -- ----------------------------
 -- Table structure for products
@@ -897,6 +901,8 @@ INSERT INTO `user_addresses` VALUES (8, 5, '??? ???? ??? 1 ?', NULL, NULL, NULL,
 INSERT INTO `user_addresses` VALUES (9, 3, 'ffff', NULL, NULL, NULL, NULL, 1, '123', 'aaa');
 INSERT INTO `user_addresses` VALUES (10, 2, '123', NULL, NULL, NULL, NULL, 0, '123', '123');
 INSERT INTO `user_addresses` VALUES (11, 2, '123312', NULL, NULL, NULL, NULL, 1, '发生的', '算法');
+INSERT INTO `user_addresses` VALUES (12, 7, '111', NULL, NULL, NULL, NULL, 0, 'test', '1111111111');
+INSERT INTO `user_addresses` VALUES (13, 7, '222', NULL, NULL, NULL, NULL, 1, 'test1', '111');
 
 -- ----------------------------
 -- Table structure for users
@@ -922,5 +928,6 @@ INSERT INTO `users` VALUES (3, '123456', '123456', '1233', '123312', '2025-01-31
 INSERT INTO `users` VALUES (4, '陈奕迅', '123456', '123123', '3123123', '2025-02-03 13:59:51');
 INSERT INTO `users` VALUES (5, 'test1771452048', '123456', 'test1771452048@example.com', '13800000000', '2026-02-18 22:00:47');
 INSERT INTO `users` VALUES (6, '321', '123456', '1694334141.gmail.com', '11111111111', '2026-02-18 22:17:16');
+INSERT INTO `users` VALUES (7, 'test', '123456', '11111@gmail.com', '1111111111', '2026-02-22 15:16:38');
 
 SET FOREIGN_KEY_CHECKS = 1;
