@@ -91,9 +91,16 @@ function appendUserMessage(content: string) {
 }
 
 function appendAssistantLoadingMessage() {
-    const msg: ChatMessage = { id: createId(), role: "assistant", content: "", loading: true };
+    const msg: ChatMessage = {
+        id: createId(),
+        role: "assistant",
+        content: "",
+        loading: true
+    };
+
     messages.value.push(msg);
-    return msg;
+
+    return messages.value[messages.value.length - 1];
 }
 
 // ===== [新增] 系统消息发送：不展示用户气泡、不污染输入框 =====
@@ -110,8 +117,11 @@ async function sendSystemMessage(message: string) {
 
     streamChatWithAI(
         systemText,
-        (chunk) => {
+        async (chunk) => {
+            console.log('chunk', chunk);
+
             assistantMsg.content += chunk;
+            await nextTick();
             scrollToBottom();
         },
         () => {

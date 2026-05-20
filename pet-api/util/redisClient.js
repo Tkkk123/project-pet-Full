@@ -1,25 +1,29 @@
 const redis = require('redis');
 
-// 创建 Redis 客户端
+// 创建 Redis 客户端（宿主机 Node 经本机端口连容器内 Redis）
 const client = redis.createClient({
-    url: 'redis://localhost:6379', // Redis 地址
+    url: process.env.REDIS_URL || 'redis://127.0.0.1:6379'
 });
 
+
+// 连接事件
 client.on('connect', () => {
     console.log('Connected to Redis');
 });
 
+// 错误监听
 client.on('error', (err) => {
     console.error('Redis Client Error:', err);
 });
 
-// 确保 Redis 客户端在使用前连接
+// 启动连接
 (async () => {
     try {
-        await client.connect(); // 使用 connect 方法连接 Redis
+        await client.connect();
+        console.log('Redis connected successfully');
     } catch (err) {
         console.error('Error connecting to Redis:', err);
     }
 })();
 
-module.exports = client; // 导出已连接的客户端实例
+module.exports = client;

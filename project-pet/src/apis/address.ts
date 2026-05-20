@@ -1,7 +1,7 @@
 import request from '@/utils/request'
 import type { AddAddressParams } from '@/types/address'
 
-const BASE_URL = '/user/address'
+const BASE_URL = "user/address";
 
 // 地址相关 API
 export const addressAPI = {

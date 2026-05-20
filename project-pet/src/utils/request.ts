@@ -4,10 +4,11 @@ import { AxiosError } from "axios";
 import { ElMessage } from "element-plus";
 import { hideLoading, showLoading } from "@/loading/loading";
 import { ApiResponse } from "@/types/api";
+import { API_BASE } from "@/config/api";
 
-// 创建自定义 axios 实例
+// 创建自定义 axios 实例（与 Nginx `/api` 代理及 Express `app.use('/api', ...)` 一致）
 const instance = axios.create({
-  baseURL: "http://localhost:8234", //请求的地址基路径
+  baseURL: API_BASE,
   timeout: 5000, // 设置请求超时时间
   withCredentials: true  // 添加这行，确保跨域请求时携带 cookie
 });

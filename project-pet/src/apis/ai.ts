@@ -1,3 +1,5 @@
+import { API_BASE } from "@/config/api";
+
 export async function streamChatWithAI(
   message: string,
   onChunk: (text: string) => void,
@@ -19,7 +21,7 @@ export async function streamChatWithAI(
 
     const token = getPersistedToken();
 
-    const response = await fetch("http://localhost:8234/ai/chat", {
+    const response = await fetch(`${API_BASE}ai/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

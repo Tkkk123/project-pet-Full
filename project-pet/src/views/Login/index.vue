@@ -200,10 +200,6 @@ const doRegister = () => {
         <p>CopyRight &copy; 宠物帮帮居</p>
       </div>
     </footer>
-
-    <div class="extra-links">
-      <router-link to="/member/reset-password">忘记密码？</router-link>
-    </div>
   </div>
 </template>
 
@@ -252,7 +248,7 @@ const doRegister = () => {
 
 .login-section {
   background: url('@/assets/Carousel.png') no-repeat center / cover;
-  height: 600px;
+  height: 800px;
   position: relative;
 
   .wrapper {

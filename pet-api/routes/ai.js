@@ -28,7 +28,7 @@ async function streamOpenClawChat(message, userToken, res) {
             messages: [
                 {
                     role: "user",
-                    content: `${message},我的token是${userToken}`,
+                    content: message,
                 }
             ],
             stream: true,
@@ -84,7 +84,10 @@ router.post("/chat", verifyToken, async (req, res) => {
 
     const userToken = req.headers.authorization?.split(" ")[1];
 
+
     await streamOpenClawChat(userMessage, userToken, res);
+
+
 });
 
 module.exports = router;

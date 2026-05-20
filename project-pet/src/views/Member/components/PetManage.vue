@@ -42,7 +42,7 @@ const getPets = async () => {
   loading.value = true
   try {
     const res = await request({
-      url: '/member/pet',
+      url: 'member/pets',
       method: 'GET'
     })
 
@@ -79,7 +79,7 @@ const createPet = async () => {
       const weightNumber = formData.weight === '' ? null : Number(formData.weight)
 
       const res = await request({
-        url: '/member/pet',
+        url: 'member/pets',
         method: 'POST',
         data: {
           name: formData.name,

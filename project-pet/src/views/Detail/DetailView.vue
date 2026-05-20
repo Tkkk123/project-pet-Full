@@ -216,7 +216,7 @@ const getRecommend = async () => {
     recommendLoading.value = true;
     try {
         const petRes = await request({
-            url: "/member/pet",
+            url: "member/pets",
             method: "GET",
         });
 
@@ -229,7 +229,7 @@ const getRecommend = async () => {
         }
 
         const recRes = await request({
-            url: `/member/recommend/${petId}`,
+            url: `member/recommend/${petId}`,
             method: "GET",
         });
 

@@ -7,11 +7,11 @@ const verifyToken = require('../middleware/verifyToken')
 /**
  * 密码重置路由
  * 需要验证用户登录状态和原密码
- * POST /reset-password
+ * POST /user/reset-password
  * @param {string} oldPassword - 原密码
  * @param {string} newPassword - 新密码
  */
-router.post('/reset-password', verifyToken, async (req, res) => {
+router.post('/user/reset-password', verifyToken, async (req, res) => {
     const { oldPassword, newPassword } = req.body
     const userId = req.user.userId
 

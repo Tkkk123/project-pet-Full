@@ -4,7 +4,7 @@ import { RegisterParams, UserInfo, ResetPasswordParams } from "@/types/user";
 
 export const registerAPI = (data: RegisterParams) => {
   return request({
-    url: "/Register",
+    url: "register",
     method: "POST",
     data,
     withCredentials: true  // 允许跨域请求携带cookie
@@ -14,7 +14,7 @@ export const registerAPI = (data: RegisterParams) => {
 
 export const loginAPI = (data: UserInfo) => {
   return request({
-    url: "/Login",
+    url: "login",
     method: "POST",
     data,
     withCredentials: true,
@@ -24,7 +24,7 @@ export const loginAPI = (data: UserInfo) => {
 
 export const checkTokenApi = () => {
   return request({
-    url: "/verify-token",
+    url: "verify-token",
     method: "GET",
     withCredentials: true,
   });
@@ -33,7 +33,7 @@ export const checkTokenApi = () => {
 
 export const logOutApi = () => {
   return request({
-    url: "/logout",
+    url: "logout",
     method: "POST",
     withCredentials: true
   });
@@ -42,7 +42,7 @@ export const logOutApi = () => {
 
 export const resetPasswordAPI = (data: ResetPasswordParams) => {
   return request({
-    url: '/reset-password',
+    url: "user/reset-password",
     method: 'POST',
     data,
     withCredentials: true

@@ -5,7 +5,7 @@ const response = require('../util/responseHandler')
 
 const router = express.Router()
 
-router.get('/pet', verifyToken, async (req, res) => {
+router.get('/pets', verifyToken, async (req, res) => {
     try {
         const userId = req.user?.id ?? req.user?.userId
 
@@ -19,7 +19,7 @@ router.get('/pet', verifyToken, async (req, res) => {
 
 
 
-router.post('/pet', verifyToken, async (req, res) => {
+router.post('/pets', verifyToken, async (req, res) => {
     try {
         const userId = req.user.userId
         const {

@@ -6,7 +6,7 @@ const response = require("../util/responseHandler");
 const interface = "PetData";
 
 // 查询所有产品及其对应的SKU信息
-router.get(`/${interface}`, function (req, res, next) {
+router.get("/products", function (req, res, next) {
   const sql = `
     SELECT 
        p.id AS product_id,

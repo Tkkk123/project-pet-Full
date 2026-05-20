@@ -5,7 +5,7 @@ const interface = "ScrollData";
 const response = require("../util/responseHandler");
 
 // 查询数据并返回
-router.get(`/${interface}`, function (req, res, next) {
+router.get("/scroll-data", function (req, res, next) {
   const sql = `
     SELECT 
        p.id AS product_id,

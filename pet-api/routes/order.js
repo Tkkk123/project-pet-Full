@@ -4,6 +4,15 @@ const dbconfig = require('../util/dbconfig')
 const verifyToken = require('../middleware/verifyToken')
 
 // SQL 查询语句
+// 结算页预检（历史前端占位接口，返回空结构避免 404）
+router.get('/member/orders/pre', verifyToken, async (req, res) => {
+    res.json({
+        code: 200,
+        message: 'ok',
+        data: { userAddresses: [] }
+    })
+})
+
 const orderQueries = {
     createOrder: `
         INSERT INTO orders (user_id, status, total_price) 
@@ -41,7 +50,7 @@ const orderQueries = {
 }
 
 // 创建订单
-router.post('/member/order', verifyToken, async (req, res) => {
+router.post('/member/orders', verifyToken, async (req, res) => {
     const userId = req.user.userId
     const { products, totalPrice } = req.body
 
@@ -115,7 +124,7 @@ router.post('/member/order', verifyToken, async (req, res) => {
 })
 
 // 获取订单列表
-router.get('/member/order', verifyToken, async (req, res) => {
+router.get('/member/orders', verifyToken, async (req, res) => {
     const userId = req.user.userId
     const { type = 'all' } = req.query
 
@@ -170,7 +179,7 @@ router.get('/member/order', verifyToken, async (req, res) => {
 })
 
 // 更新订单状态
-router.put('/member/order/:orderId/status', verifyToken, async (req, res) => {
+router.put('/member/orders/:orderId/status', verifyToken, async (req, res) => {
     const { orderId } = req.params
     const { status } = req.body
     const userId = req.user.userId

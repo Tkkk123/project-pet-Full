@@ -11,7 +11,7 @@ import type {
 // 获取详情接口
 export const getCheckInfoAPI = () => {
   return request({
-    url: "/member/order/pre",
+    url: "member/orders/pre",
     method: "GET",
     withCredentials: true
   });
@@ -20,7 +20,7 @@ export const getCheckInfoAPI = () => {
 // 创建订单
 export const createOrderAPI = (data: CreateOrderParams) => {
   return request({
-    url: "/member/order",
+    url: "member/orders",
     method: "POST",
     data,
     withCredentials: true
@@ -30,7 +30,7 @@ export const createOrderAPI = (data: CreateOrderParams) => {
 // 获取用户订单
 export const getUserOrder = (params: OrderListParams = {}) => {
   return request({
-    url: "/member/order",
+    url: "member/orders",
     method: "GET",
     params,
     withCredentials: true
@@ -43,7 +43,7 @@ export const updateOrderStatus = (
   status: string
 ) => {
   return request({
-    url: `/member/order/${orderId}/status`,
+    url: `member/orders/${orderId}/status`,
     method: 'PUT',
     data: { status },
     withCredentials: true

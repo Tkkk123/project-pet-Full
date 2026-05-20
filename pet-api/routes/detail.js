@@ -3,10 +3,9 @@ const router = express.Router();
 const dbconfig = require("../util/dbconfig");
 const dayjs = require("dayjs");
 const response = require("../util/responseHandler");
-const interface = "Detail";
 
 // 查询商品详情
-router.get('/Detail/:id', async (req, res) => {
+router.get('/products/:id', async (req, res) => {
     const productId = req.params.id;
 
     const sql = `

@@ -1,10 +1,20 @@
 var express = require("express");
 var router = express.Router();
+const bcrypt = require("bcryptjs");
 const dbconfig = require("../util/dbconfig");
 const { v4: uuidv4 } = require("uuid");
 const redisClient = require("../util/redisClient");
+const rateLimit = require("express-rate-limit");
 
-router.post("/Login", async (req, res) => {
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15分钟
+  max: 10, // 最多10次尝试
+  message: { code: 429, message: "登录尝试过多，请15分钟后再试" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+router.post("/login", loginLimiter, async (req, res) => {
     const { account, password } = req.body;
 
     if (!account || !password) {
@@ -25,7 +35,7 @@ router.post("/Login", async (req, res) => {
             });
         }
 
-        if (data.length === 0 || data[0].password !== password) {
+        if (data.length === 0) {
             return res.status(401).json({
                 code: 401,
                 message: "账号或密码错误"
@@ -33,6 +43,15 @@ router.post("/Login", async (req, res) => {
         }
 
         const user = data[0];
+        const isMatch = await bcrypt.compare(password, user.password);
+
+        if (!isMatch) {
+            return res.status(401).json({
+                code: 401,
+                message: "账号或密码错误"
+            });
+        }
+
         const token = uuidv4();
         const expires = 24 * 60 * 60; // 24小时
 
@@ -47,7 +66,7 @@ router.post("/Login", async (req, res) => {
                 { EX: expires }
             );
 
-            // ✅ 直接返回 token
+            // 直接返回 token
             return res.json({
                 code: 200,
                 message: "登录成功",
